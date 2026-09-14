@@ -260,6 +260,10 @@ export const App = () => {
   };
 
   const handleUserHeaderClick = () => {
+    setIsLoginOpen(false);
+    setIsOrdersOpen(false);
+    setIsSupportOpen(false);
+    setIsGatewayOpen(false);
     if (!userProfile) {
       setUserProfile(DEFAULT_USER_PROFILE);
     }
@@ -267,12 +271,26 @@ export const App = () => {
     setIsProfileOpen(true);
   };
 
+  const handleOpenSupport = () => {
+    setIsLoginOpen(false);
+    setIsProfileOpen(false);
+    setIsOrdersOpen(false);
+    setIsGatewayOpen(false);
+    setIsSupportOpen(true);
+  };
+
   const handleOpenProfileOrders = () => {
+    setIsLoginOpen(false);
+    setIsSupportOpen(false);
+    setIsGatewayOpen(false);
     setProfileTab('orders');
     setIsProfileOpen(true);
   };
 
   const handleOpenProfileWallet = () => {
+    setIsLoginOpen(false);
+    setIsSupportOpen(false);
+    setIsGatewayOpen(false);
     setProfileTab('profile');
     setIsProfileOpen(true);
   };
@@ -281,7 +299,7 @@ export const App = () => {
     <div className="min-h-screen bg-[#f8f6fc] text-[#1e1035] flex flex-col selection:bg-purple-200 selection:text-purple-900 font-['Satoshi']">
       
       {/* BLACK CONTINUOUS SCROLLING DISCOUNT MARQUEE STRIPE */}
-      <div className="w-full bg-[#05070a] text-white py-2.5 overflow-hidden whitespace-nowrap z-50 border-b border-purple-950 font-['Satoshi'] shadow-md">
+      <div className="w-full bg-[#05070a] text-white py-2.5 overflow-hidden whitespace-nowrap z-30 border-b border-purple-950 font-['Satoshi'] shadow-md">
         <div className="animate-marquee flex items-center font-mono text-xs sm:text-sm font-bold tracking-widest uppercase">
           <span className="mx-8 flex items-center gap-2 shrink-0">
             🔥 <strong className="text-white">10% DISCOUNT ON ALL ORDERS USING THIS CODE</strong> <span className="bg-amber-400 text-black px-2.5 py-0.5 rounded-md font-black tracking-widest">DEEPNET50</span> 🔥
@@ -308,7 +326,7 @@ export const App = () => {
         onOpenOrders={() => setIsOrdersOpen(true)}
         onOpenLogin={handleUserHeaderClick}
         onOpenWallet={handleOpenProfileWallet}
-        onOpenSupport={() => setIsSupportOpen(true)}
+        onOpenSupport={handleOpenSupport}
       />
 
       {/* Main Content View Switcher */}
