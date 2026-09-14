@@ -26,7 +26,7 @@ export const CheckoutModal = ({ isOpen, onClose, selectedSuite, selectedBrand, o
   // Payment Gateway Configuration
   const demoLtcAddress = "ltc1qu6z2mt0zym24u0mx0r0p6ck02nckyy2h026c97";
   const demoUpiId = "deepmarket.pay@upi";
-  const razorpayKeyId = import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_TMrxw5OYPRmaZk";
+  const razorpayKeyId = import.meta.env.VITE_RAZORPAY_KEY_ID || "";
 
   if (!isOpen || !selectedSuite) return null;
 
