@@ -418,7 +418,7 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, transactions, n
 
                 <div className="space-y-0.5">
                   <p className="font-mono text-3xl font-black text-white tracking-tight">
-                    ₹{normalWalletBalance.toLocaleString()}.00
+                    ₹{(normalWalletBalance || 0).toLocaleString()}.00
                   </p>
                 </div>
 
@@ -824,7 +824,7 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, transactions, n
                       <div className="p-2.5 bg-amber-50 rounded-xl space-y-1.5 text-[11px] font-mono text-amber-950 border border-amber-200">
                         <div className="flex justify-between">
                           <span>Amount:</span>
-                          <span className="font-bold">₹{tx.totalPaid.toLocaleString()}</span>
+                          <span className="font-bold">₹{(tx.totalPaid || tx.priceInr || 0).toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between truncate">
                           <span>LTC Address:</span>

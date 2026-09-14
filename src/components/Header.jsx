@@ -87,7 +87,7 @@ export const Header = ({ currentView, onNavigate, ordersCount, userProfile, wall
                 <Wallet className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 stroke-[2.2]" />
               </div>
               <span className="text-[10.5px] sm:text-xs font-['Satoshi'] font-black text-purple-700 mt-0.5 tracking-tight font-mono">
-                ₹{walletBalance.toLocaleString()}
+                ₹{(walletBalance || 0).toLocaleString()}
               </span>
             </button>
 
