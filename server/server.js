@@ -18,9 +18,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Initialize Razorpay SDK instance securely with environment variables
-const razorpayKeyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TMrxw5OYPRmaZk';
-const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'wiMou1WR5Cbh53LvUw8E9cGK';
+// Initialize Razorpay SDK instance securely from environment variables
+const razorpayKeyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID;
+const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
 
 const razorpayInstance = new Razorpay({
   key_id: razorpayKeyId,
