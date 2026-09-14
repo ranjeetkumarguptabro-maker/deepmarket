@@ -105,12 +105,10 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, transactions, n
     if (isOpen) {
       setActiveTab(initialTab || 'profile');
       setSelectedOrder(null);
-      if (userProfile) {
-        setFirstName(userProfile.firstName || '');
-        setSurname(userProfile.surname || '');
-        setGmail(userProfile.gmail || '');
-        setAvatarUrl(userProfile.avatarUrl || '/assets/avatars/men1.jpg');
-      }
+      setFirstName(userProfile?.firstName || 'Ranjeet');
+      setSurname(userProfile?.surname || 'Gupta');
+      setGmail(userProfile?.gmail || 'ranjeet.gupta@deepmarket.org');
+      setAvatarUrl(userProfile?.avatarUrl || '/assets/avatars/men1.jpg');
     }
   }, [isOpen, initialTab, userProfile]);
 
@@ -157,7 +155,7 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, transactions, n
   };
 
   const handleTopupSubmit = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     const val = parseInt(topupAmount.trim(), 10);
     if (isNaN(val) || val <= 0) {
       if (onShowToast) onShowToast("Please enter a valid top-up amount.");
@@ -169,6 +167,24 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, transactions, n
     }
     setTopupAmount('');
     if (onShowToast) onShowToast(`Added ₹${val.toLocaleString()} to Account Wallet!`);
+  };
+
+  const handleWithdrawSubmit = (e) => {
+    if (e) e.preventDefault();
+    const val = parseInt(topupAmount.trim(), 10);
+    if (isNaN(val) || val <= 0) {
+      if (onShowToast) onShowToast("Please enter a valid withdrawal amount.");
+      return;
+    }
+    if (val > normalWalletBalance) {
+      if (onShowToast) onShowToast("Withdrawal Error: Insufficient Account Wallet Balance.");
+      return;
+    }
+    if (onAddNormalWallet) {
+      onAddNormalWallet(-val);
+    }
+    setTopupAmount('');
+    if (onShowToast) onShowToast(`✅ Withdrawal Request for ₹${val.toLocaleString()} submitted successfully!`);
   };
 
   // SYSTEM CHECKS ELIGIBILITY FLOW
@@ -244,7 +260,7 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, transactions, n
       onAddNormalWallet(targetRefund.totalRefund);
     }
 
-    if (onShowToast) onShowToast(`Refund Approved & Sent ✅ ₹${targetRefund.totalRefund.toLocaleString()} credited to Account Wallet.`);
+    if (onShowToast) onShowToast(`🎉 Refund Approved & Sent! ₹${targetRefund.totalRefund.toLocaleString()} has been credited directly to your Account Wallet Balance.`);
   };
 
   // ADMIN REVIEW -> REJECT REFUND
@@ -319,58 +335,68 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, transactions, n
         </div>
 
         {/* Tab Switcher: Profile vs Orders vs Refund History vs Admin Panel */}
-        {!selectedOrder && (
-          <div className="grid grid-cols-4 gap-1 p-1 bg-purple-50 border border-purple-200 rounded-2xl shrink-0 font-['Satoshi'] text-[11px] font-bold">
-            <button
-              type="button"
-              onClick={() => setActiveTab('profile')}
-              className={`py-2 rounded-xl uppercase tracking-wider flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                activeTab === 'profile'
-                  ? 'glass-btn shadow-md'
-                  : 'text-[#6e5a8e] hover:text-[#1e1035]'
-              }`}
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>Profile</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('orders')}
-              className={`py-2 rounded-xl uppercase tracking-wider flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                activeTab === 'orders'
-                  ? 'glass-btn shadow-md'
-                  : 'text-[#6e5a8e] hover:text-[#1e1035]'
-              }`}
-            >
-              <ShoppingBag className="w-3.5 h-3.5" />
-              <span>Orders ({transactions ? transactions.length : 0})</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('refunds')}
-              className={`py-2 rounded-xl uppercase tracking-wider flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                activeTab === 'refunds'
-                  ? 'glass-btn shadow-md'
-                  : 'text-[#6e5a8e] hover:text-[#1e1035]'
-              }`}
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Refunds ({refundRequests.length})</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('admin')}
-              className={`py-2 rounded-xl uppercase tracking-wider flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                activeTab === 'admin'
-                  ? 'bg-amber-600 text-white shadow-md'
-                  : 'text-amber-800 hover:bg-amber-100'
-              }`}
-            >
-              <ShieldAlert className="w-3.5 h-3.5" />
-              <span>Admin</span>
-            </button>
-          </div>
-        )}
+        <div className="grid grid-cols-4 gap-1 p-1 bg-purple-50 border border-purple-200 rounded-2xl shrink-0 font-['Satoshi'] text-[11px] font-bold">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('profile');
+              setSelectedOrder(null);
+            }}
+            className={`py-2 rounded-xl uppercase tracking-wider flex items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'profile' && !selectedOrder
+                ? 'glass-btn shadow-md'
+                : 'text-[#6e5a8e] hover:text-[#1e1035]'
+            }`}
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>Profile</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('orders');
+              setSelectedOrder(null);
+            }}
+            className={`py-2 rounded-xl uppercase tracking-wider flex items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'orders'
+                ? 'glass-btn shadow-md'
+                : 'text-[#6e5a8e] hover:text-[#1e1035]'
+            }`}
+          >
+            <ShoppingBag className="w-3.5 h-3.5" />
+            <span>Orders ({transactions ? transactions.length : 0})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('refunds');
+              setSelectedOrder(null);
+            }}
+            className={`py-2 rounded-xl uppercase tracking-wider flex items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'refunds'
+                ? 'glass-btn shadow-md'
+                : 'text-[#6e5a8e] hover:text-[#1e1035]'
+            }`}
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Refunds ({refundRequests.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('admin');
+              setSelectedOrder(null);
+            }}
+            className={`py-2 rounded-xl uppercase tracking-wider flex items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'admin'
+                ? 'bg-amber-600 text-white shadow-md'
+                : 'text-amber-800 hover:bg-amber-100'
+            }`}
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span>Admin</span>
+          </button>
+        </div>
 
         {/* Scrollable Content Body */}
         <div className="overflow-y-auto flex-1 space-y-5 pr-1">
@@ -380,7 +406,7 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, transactions, n
             <div className="space-y-6 font-['Satoshi'] animate-fade-in">
               
               {/* SINGLE ACCOUNT WALLET CARD */}
-              <div className="p-5 rounded-3xl bg-gradient-to-r from-purple-950 via-indigo-950 to-[#1e1035] text-white shadow-xl relative overflow-hidden space-y-3 border border-purple-400/30">
+              <div className="p-5 rounded-3xl bg-gradient-to-r from-purple-950 via-indigo-950 to-[#1e1035] text-white shadow-xl relative overflow-hidden space-y-3.5 border border-purple-400/30">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-mono font-bold text-purple-200 uppercase tracking-widest flex items-center gap-1.5">
                     <Wallet className="w-4 h-4 text-purple-400" /> Account Wallet Balance
@@ -390,37 +416,45 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, transactions, n
                   </span>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   <p className="font-mono text-3xl font-black text-white tracking-tight">
                     ₹{normalWalletBalance.toLocaleString()}.00
                   </p>
-                  <p className="text-[11px] text-purple-200 font-sans font-semibold">
-                    Purchases & Instant Refund Credits Balance
-                  </p>
                 </div>
 
-                {/* TOP-UP FORM */}
-                <form onSubmit={handleTopupSubmit} className="pt-2 border-t border-purple-800/80 space-y-2">
+                {/* TOP-UP & WITHDRAWAL FORM */}
+                <div className="pt-3 border-t border-purple-800/80 space-y-2">
                   <div className="flex gap-2">
                     <div className="relative flex-1">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-purple-300">₹</span>
                       <input
                         type="number"
-                        placeholder="Add Funds e.g. 1000"
+                        placeholder="Amount e.g. 1000"
                         value={topupAmount}
                         onChange={(e) => setTopupAmount(e.target.value)}
                         className="w-full h-9 pl-7 pr-3 bg-purple-900/60 border border-purple-700/60 rounded-xl text-xs font-mono text-white font-bold focus:outline-none focus:border-purple-400 placeholder:text-purple-300/60"
                       />
                     </div>
                     <button
-                      type="submit"
-                      className="glass-btn px-4 h-9 rounded-xl text-xs font-extrabold uppercase tracking-wider cursor-pointer flex items-center gap-1 shadow-sm shrink-0"
+                      type="button"
+                      onClick={handleTopupSubmit}
+                      className="glass-btn px-3.5 h-9 rounded-xl text-xs font-extrabold uppercase tracking-wider cursor-pointer flex items-center gap-1 shadow-sm shrink-0"
+                      title="Top-Up Account Wallet Balance"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>Top-Up</span>
                     </button>
+                    <button
+                      type="button"
+                      onClick={handleWithdrawSubmit}
+                      className="bg-rose-600 hover:bg-rose-700 text-white px-3.5 h-9 rounded-xl text-xs font-extrabold uppercase tracking-wider cursor-pointer flex items-center gap-1 shadow-sm shrink-0 transition-colors"
+                      title="Request Wallet Withdrawal"
+                    >
+                      <ArrowRight className="w-3.5 h-3.5" />
+                      <span>Withdraw</span>
+                    </button>
                   </div>
-                </form>
+                </div>
               </div>
 
               {/* PROFILE DETAILS EDIT FORM */}
@@ -904,7 +938,7 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, transactions, n
           )}
 
           {/* DEDICATED SINGLE CARD DETAILS PLACE VIEW */}
-          {selectedOrder && !selectedOrder.tx.cardDeleted && (
+          {selectedOrder && selectedOrder.demoCard && !selectedOrder?.tx?.cardDeleted && (
             <div className="space-y-5 font-['Satoshi'] animate-fade-in">
               <button
                 onClick={() => setSelectedOrder(null)}

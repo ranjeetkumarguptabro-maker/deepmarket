@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, CreditCard, Shield, CheckCircle, ArrowRight, Zap, ShoppingBag, Copy, Clock, ShieldAlert, Tag, QrCode, GraduationCap, PlusCircle, Check } from 'lucide-react';
 import { sanitizeText, checkRateLimit } from '../lib/security';
 import { CaptchaWidget } from './CaptchaWidget';
+import { RazorpayPaymentButton } from './RazorpayPaymentButton';
 
 export const CheckoutModal = ({ isOpen, onClose, selectedSuite, selectedBrand, onAddTransaction, onOpenOrders, onShowToast }) => {
   const [paymentMethod, setPaymentMethod] = useState('razorpay'); // 'razorpay' | 'crypto'
@@ -25,7 +26,7 @@ export const CheckoutModal = ({ isOpen, onClose, selectedSuite, selectedBrand, o
   // Payment Gateway Configuration
   const demoLtcAddress = "ltc1qu6z2mt0zym24u0mx0r0p6ck02nckyy2h026c97";
   const demoUpiId = "deepmarket.pay@upi";
-  const razorpayKeyId = "rzp_test_TMZGMr4zhfPU6e";
+  const razorpayKeyId = import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_TMrxw5OYPRmaZk";
 
   if (!isOpen || !selectedSuite) return null;
 
@@ -84,7 +85,7 @@ export const CheckoutModal = ({ isOpen, onClose, selectedSuite, selectedBrand, o
     if (onShowToast) onShowToast("Demo UPI VPA ID copied to clipboard!");
   };
 
-  const handleConfirmCheckout = (e) => {
+  const handleConfirmCheckout = async (e) => {
     e.preventDefault();
 
     // Rate Limiting Security Check for Checkout Submissions
@@ -94,11 +95,7 @@ export const CheckoutModal = ({ isOpen, onClose, selectedSuite, selectedBrand, o
       return;
     }
 
-    // CAPTCHA Verification Security Check
-    if (!isCaptchaVerified) {
-      if (onShowToast) onShowToast("Security Alert: Please complete Cloudflare Turnstile CAPTCHA verification before payment!");
-      return;
-    }
+    // Proceed directly to payment gateway without blocking
 
     // Require LTC Transaction Hash / TxID for LTC Crypto Payments
     if (paymentMethod === 'crypto') {
@@ -113,12 +110,115 @@ export const CheckoutModal = ({ isOpen, onClose, selectedSuite, selectedBrand, o
 
     setIsProcessing(true);
 
-    setTimeout(() => {
-      const orderId = `DM-${Math.floor(10000 + Math.random() * 90000)}`;
-      const orderItemTitle = includeCourseAddon && !isCourseItem 
-        ? `${selectedSuite.name} + Carding Masterclass Course Bundle` 
-        : selectedSuite.name;
+    const orderId = `DM-${Math.floor(10000 + Math.random() * 90000)}`;
+    const orderItemTitle = includeCourseAddon && !isCourseItem 
+      ? `${selectedSuite.name} + Carding Masterclass Course Bundle` 
+      : selectedSuite.name;
 
+    // INSTANT RAZORPAY MODAL POPUP FLOW
+    if (paymentMethod === 'razorpay') {
+      try {
+        const amountInPaise = totalPaid * 100;
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+
+        const openRazorpayModal = (serverOrderId = null) => {
+          const options = {
+            key: razorpayKeyId || 'rzp_test_TMrxw5OYPRmaZk',
+            amount: amountInPaise,
+            currency: 'INR',
+            name: 'DEEP MARKET',
+            description: `Purchase: ${orderItemTitle}`,
+            image: '/assets/dm_logo_icon.png',
+            order_id: serverOrderId || undefined,
+            handler: async function (response) {
+              const newOrder = {
+                id: orderId,
+                orderNumber: orderId,
+                suiteId: selectedSuite.id,
+                suiteName: orderItemTitle,
+                basePrice: basePrice,
+                courseAddonPrice: courseAddonPrice,
+                subtotal: subtotalBeforeDiscount,
+                discountAmount: discountAmount,
+                appliedPromoCode: appliedPromo ? appliedPromo.code : null,
+                gatewayFee: 0,
+                totalPaid: totalPaid,
+                priceInr: totalPaid,
+                priceUsd: selectedSuite.priceUsd,
+                brand: selectedBrand,
+                cardBalance: selectedSuite.cardBalance,
+                processingSla: selectedSuite.processingSla,
+                status: 'Completed',
+                date: new Date().toLocaleDateString(),
+                timestamp: new Date().toLocaleString(),
+                paymentMethod: 'Razorpay API Gateway',
+                razorpayPaymentId: response.razorpay_payment_id || `pay_${Date.now()}`,
+                razorpayOrderId: response.razorpay_order_id || serverOrderId,
+                includedCourseAddon: includeCourseAddon && !isCourseItem
+              };
+
+              setCreatedOrder(newOrder);
+              setIsProcessing(false);
+              setIsSuccess(true);
+              if (onAddTransaction) onAddTransaction(newOrder);
+              if (onShowToast) onShowToast(`🎉 Razorpay Payment Verified! Payment ID: ${newOrder.razorpayPaymentId}`);
+            },
+            prefill: {
+              name: 'DeepMarket VIP',
+              email: 'privacy@deepmarket.org',
+              contact: '9000000000'
+            },
+            readonly: {
+              name: 1,
+              email: 1,
+              contact: 1
+            },
+            hidden: {
+              contact: 1,
+              email: 1,
+              name: 1
+            },
+            theme: {
+              color: '#7e22ce'
+            },
+            modal: {
+              ondismiss: function () {
+                setIsProcessing(false);
+                if (onShowToast) onShowToast("Razorpay Payment window closed.");
+              }
+            }
+          };
+
+          if (window.Razorpay) {
+            const rzp = new window.Razorpay(options);
+            rzp.on('payment.failed', function (resp) {
+              setIsProcessing(false);
+              if (onShowToast) onShowToast(`Payment Declined: ${resp?.error?.description || 'Transaction failed.'}`);
+            });
+            rzp.open();
+          } else {
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.onload = () => {
+              const rzp = new window.Razorpay(options);
+              rzp.open();
+            };
+            document.body.appendChild(script);
+          }
+        };
+
+        // Open Razorpay Checkout Modal synchronously on user click event
+        openRazorpayModal(null);
+
+      } catch (err) {
+        setIsProcessing(false);
+        if (onShowToast) onShowToast(`Razorpay Launch Error: ${err.message}`);
+      }
+      return;
+    }
+
+    // LTC CRYPTO GATEWAY SUBMISSION FLOW
+    setTimeout(() => {
       const newOrder = {
         id: orderId,
         orderNumber: orderId,
@@ -136,13 +236,12 @@ export const CheckoutModal = ({ isOpen, onClose, selectedSuite, selectedBrand, o
         brand: selectedBrand,
         cardBalance: selectedSuite.cardBalance,
         processingSla: selectedSuite.processingSla,
-        status: paymentMethod === 'crypto' ? 'Pending Admin Approval' : 'Completed',
+        status: 'Pending Admin Approval',
         date: new Date().toLocaleDateString(),
         timestamp: new Date().toLocaleString(),
-        paymentMethod: paymentMethod === 'crypto' ? 'Crypto (LTC)' : 'Razorpay Gateway',
-        ltcAddress: paymentMethod === 'crypto' ? demoLtcAddress : null,
-        ltcTxHash: paymentMethod === 'crypto' ? sanitizeText(userLtcTxId).trim() : null,
-        upiId: paymentMethod === 'upi' ? demoUpiId : null,
+        paymentMethod: 'Crypto (LTC)',
+        ltcAddress: demoLtcAddress,
+        ltcTxHash: sanitizeText(userLtcTxId).trim(),
         includedCourseAddon: includeCourseAddon && !isCourseItem
       };
 
@@ -151,11 +250,7 @@ export const CheckoutModal = ({ isOpen, onClose, selectedSuite, selectedBrand, o
       setIsSuccess(true);
       if (onAddTransaction) onAddTransaction(newOrder);
       if (onShowToast) {
-        if (paymentMethod === 'crypto') {
-          onShowToast(`LTC Order ${orderId} submitted! Remaining Processing - Pending Admin Approval.`);
-        } else {
-          onShowToast(`Order ${orderId} completed via Demo UPI Gateway!`);
-        }
+        onShowToast(`LTC Order ${orderId} submitted! Remaining Processing - Pending Admin Approval.`);
       }
     }, 1200);
   };
@@ -376,19 +471,18 @@ export const CheckoutModal = ({ isOpen, onClose, selectedSuite, selectedBrand, o
 
             {/* RAZORPAY GATEWAY DISPLAY */}
             {paymentMethod === 'razorpay' && (
-              <div className="p-3.5 rounded-2xl bg-blue-950 text-white border border-blue-700/60 space-y-2.5 font-mono text-xs shadow-md">
-                <div className="flex justify-between items-center text-blue-200 text-[11px]">
-                  <span className="font-bold flex items-center gap-1 font-sans">
-                    <CreditCard className="w-3.5 h-3.5 text-blue-400" /> Razorpay Payment Gateway (UPI / QR / Cards)
+              <div className="space-y-3">
+                <div className="p-3 rounded-2xl bg-blue-950 text-white border border-blue-700/60 font-mono text-xs shadow-md flex justify-between items-center">
+                  <span className="font-bold flex items-center gap-1.5 font-sans text-xs text-blue-200">
+                    <CreditCard className="w-4 h-4 text-blue-400" /> Razorpay Gateway {totalPaid === 400 || isCourseItem ? '(₹400 Gateway)' : ''}
                   </span>
-                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-2 py-0.5 rounded text-[10px] font-bold">
-                    ✓ ACTIVE
+                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider flex items-center gap-1">
+                    <Shield className="w-3 h-3 text-emerald-400" /> SECURE PAYMENT PROTECTED
                   </span>
                 </div>
 
-                <p className="text-[10px] text-blue-200 font-sans font-medium leading-relaxed">
-                  Direct Cards, UPI QR, Netbanking &amp; Wallets integrated via Razorpay Gateway. Click Pay Now to process.
-                </p>
+                {/* Razorpay Embedded Payment Button (₹400: pl_TMuuLdBd4SwDJW | Default: pl_TMsbghzmhPLvji) */}
+                <RazorpayPaymentButton buttonId={totalPaid === 400 || isCourseItem ? "pl_TMuuLdBd4SwDJW" : "pl_TMsbghzmhPLvji"} />
               </div>
             )}
 

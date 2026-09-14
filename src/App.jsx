@@ -32,8 +32,16 @@ export const App = () => {
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [isGatewayOpen, setIsGatewayOpen] = useState(false);
 
+  const DEFAULT_USER_PROFILE = {
+    firstName: 'Ranjeet',
+    surname: 'Gupta',
+    gmail: 'ranjeet.gupta@deepmarket.org',
+    avatarUrl: '/assets/avatars/men1.jpg',
+    isLoggedIn: true
+  };
+
   const [transactions, setTransactions] = useState([]);
-  const [userProfile, setUserProfile] = useState(null);
+  const [userProfile, setUserProfile] = useState(DEFAULT_USER_PROFILE);
   const [normalWalletBalance, setNormalWalletBalance] = useState(500);
   const [virtualWalletBalance, setVirtualWalletBalance] = useState(0);
   const [toastMessage, setToastMessage] = useState('');
@@ -51,6 +59,9 @@ export const App = () => {
       const savedProfile = localStorage.getItem('deepmarket_user_profile');
       if (savedProfile) {
         setUserProfile(JSON.parse(savedProfile));
+      } else {
+        setUserProfile(DEFAULT_USER_PROFILE);
+        localStorage.setItem('deepmarket_user_profile', JSON.stringify(DEFAULT_USER_PROFILE));
       }
       const savedNormalWallet = localStorage.getItem('deepmarket_normal_wallet');
       if (savedNormalWallet) {
@@ -249,12 +260,11 @@ export const App = () => {
   };
 
   const handleUserHeaderClick = () => {
-    if (userProfile && userProfile.isLoggedIn) {
-      setProfileTab('profile');
-      setIsProfileOpen(true);
-    } else {
-      setIsLoginOpen(true);
+    if (!userProfile) {
+      setUserProfile(DEFAULT_USER_PROFILE);
     }
+    setProfileTab('profile');
+    setIsProfileOpen(true);
   };
 
   const handleOpenProfileOrders = () => {

@@ -3,8 +3,8 @@ import { ShoppingCart, User, BookOpen, Layers, Headphones, Wallet } from 'lucide
 
 export const Header = ({ currentView, onNavigate, ordersCount, userProfile, walletBalance = 0, onOpenOrders, onOpenLogin, onOpenWallet, onOpenSupport }) => {
   const isLoggedIn = userProfile && userProfile.isLoggedIn;
-  const displayName = isLoggedIn && userProfile.firstName ? userProfile.firstName : 'Login';
-  const avatarUrl = isLoggedIn && userProfile.avatarUrl ? userProfile.avatarUrl : null;
+  const displayName = isLoggedIn && userProfile.firstName ? userProfile.firstName : 'Profile';
+  const avatarUrl = userProfile && userProfile.avatarUrl ? userProfile.avatarUrl : '/assets/avatars/men1.jpg';
 
   return (
     <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-white/90 border-b border-purple-100 shadow-xs font-['Satoshi']">

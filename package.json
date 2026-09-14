@@ -10,8 +10,12 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "lucide-react": "^0.344.0",
     "qrcode": "^1.5.3",
+    "razorpay": "^2.9.8",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
