@@ -402,7 +402,7 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, transactions, n
         <div className="overflow-y-auto flex-1 space-y-5 pr-1">
 
           {/* TAB 1: EDIT PROFILE FORM WITH SINGLE ACCOUNT WALLET */}
-          {activeTab === 'profile' && !selectedOrder && (
+          {(activeTab === 'profile' || !['orders', 'refunds', 'admin'].includes(activeTab)) && !selectedOrder && (
             <div className="space-y-6 font-['Satoshi'] animate-fade-in">
               
               {/* SINGLE ACCOUNT WALLET CARD */}

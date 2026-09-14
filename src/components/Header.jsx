@@ -65,7 +65,11 @@ export const Header = ({ currentView, onNavigate, ordersCount, userProfile, wall
             
             {/* SUPPORT BUTTON */}
             <button
-              onClick={() => onOpenSupport()}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenSupport) onOpenSupport();
+              }}
               className="flex flex-col items-center justify-center group cursor-pointer transition-transform active:scale-95"
               title="Customer Support & FAQ"
             >
@@ -79,7 +83,11 @@ export const Header = ({ currentView, onNavigate, ordersCount, userProfile, wall
 
             {/* WALLET BUTTON */}
             <button
-              onClick={() => onOpenWallet()}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenWallet) onOpenWallet();
+              }}
               className="flex flex-col items-center justify-center group cursor-pointer transition-transform active:scale-95"
               title="View User Wallet & Balance"
             >
@@ -93,7 +101,11 @@ export const Header = ({ currentView, onNavigate, ordersCount, userProfile, wall
 
             {/* USER PROFILE / LOGIN BUTTON */}
             <button
-              onClick={() => onOpenLogin()}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenLogin) onOpenLogin();
+              }}
               className="flex flex-col items-center justify-center group cursor-pointer transition-transform active:scale-95 max-w-[65px] sm:max-w-[80px]"
               title={isLoggedIn ? `Logged in as ${displayName}` : 'Login to Account'}
             >
@@ -113,7 +125,11 @@ export const Header = ({ currentView, onNavigate, ordersCount, userProfile, wall
 
             {/* CART BUTTON */}
             <button
-              onClick={() => onOpenOrders()}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenOrders) onOpenOrders();
+              }}
               className="flex flex-col items-center justify-center relative group cursor-pointer transition-transform active:scale-95"
               title="View Cart & Orders"
             >
