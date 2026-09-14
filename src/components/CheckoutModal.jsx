@@ -123,7 +123,7 @@ export const CheckoutModal = ({ isOpen, onClose, selectedSuite, selectedBrand, o
 
         const openRazorpayModal = (serverOrderId = null) => {
           const options = {
-            key: razorpayKeyId || 'rzp_test_TMrxw5OYPRmaZk',
+            key: razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID || '',
             amount: amountInPaise,
             currency: 'INR',
             name: 'DEEP MARKET',
@@ -588,10 +588,10 @@ export const CheckoutModal = ({ isOpen, onClose, selectedSuite, selectedBrand, o
               <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-left text-xs space-y-2 text-amber-900 font-medium">
                 <div className="flex items-center gap-1.5 font-bold text-amber-950">
                   <ShieldAlert className="w-4 h-4 text-amber-700" />
-                  <span>Sent Request to Admin Panel</span>
+                  <span>⏳ LTC Payment Pending Manual Confirmation</span>
                 </div>
-                <p className="text-[11px] text-amber-800">
-                  Your LTC deposit request is pending verification. Once approved in the Admin Panel, your card credentials will be issued to your profile.
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  Your LTC deposit request (TxID submitted) is currently <strong>awaiting manual payment confirmation by the store admin</strong>. Once the admin verifies and approves receipt of your LTC on the blockchain, your purchased items &amp; card credentials will be automatically unlocked and delivered to your profile.
                 </p>
               </div>
             ) : (

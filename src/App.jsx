@@ -6,8 +6,10 @@ import { OrdersModal } from './components/OrdersModal';
 import { HowItWorksPage } from './components/HowItWorksPage';
 import { ReviewsModal } from './components/ReviewsModal';
 import { LoginModal } from './components/LoginModal';
-import { UserProfileModal } from './components/UserProfileModal';
+import { AuthModal } from './components/AuthModal';
+import { NewProfileModal } from './components/NewProfileModal';
 import { SupportModal } from './components/SupportModal';
+import { UserProfileSection } from './components/UserProfileSection';
 import { PaymentGatewayModal } from './components/PaymentGatewayModal';
 import { LivePurchaseNotification } from './components/LivePurchaseNotification';
 import { ProofAndReviewsSection } from './components/ProofAndReviewsSection';
@@ -259,16 +261,41 @@ export const App = () => {
     setIsCheckoutOpen(true);
   };
 
-  const handleUserHeaderClick = () => {
+  const handleOpenAuthModal = () => {
+    setIsProfileOpen(false);
+    setIsOrdersOpen(false);
+    setIsSupportOpen(false);
+    setIsGatewayOpen(false);
+    setIsLoginOpen(false);
+    setTimeout(() => {
+      setIsLoginOpen(true);
+    }, 10);
+  };
+
+  const handleOpenProfileModal = () => {
     setIsLoginOpen(false);
     setIsOrdersOpen(false);
     setIsSupportOpen(false);
     setIsGatewayOpen(false);
-    if (!userProfile) {
-      setUserProfile(DEFAULT_USER_PROFILE);
+    if (!userProfile || !userProfile.isLoggedIn) {
+      const activeProfile = {
+        firstName: 'Ranjeet',
+        surname: 'Gupta',
+        gmail: 'ranjeet.gupta@deepmarket.org',
+        avatarUrl: '/assets/avatars/men1.jpg',
+        isLoggedIn: true
+      };
+      setUserProfile(activeProfile);
+      try {
+        localStorage.setItem('deepmarket_user_profile', JSON.stringify(activeProfile));
+      } catch (e) {
+        // ignore
+      }
     }
-    setProfileTab('profile');
-    setIsProfileOpen(true);
+    setIsProfileOpen(false);
+    setTimeout(() => {
+      setIsProfileOpen(true);
+    }, 10);
   };
 
   const handleOpenSupport = () => {
@@ -276,7 +303,10 @@ export const App = () => {
     setIsProfileOpen(false);
     setIsOrdersOpen(false);
     setIsGatewayOpen(false);
-    setIsSupportOpen(true);
+    setIsSupportOpen(false);
+    setTimeout(() => {
+      setIsSupportOpen(true);
+    }, 10);
   };
 
   const handleOpenProfileOrders = () => {
@@ -324,8 +354,9 @@ export const App = () => {
         userProfile={userProfile}
         walletBalance={normalWalletBalance}
         onOpenOrders={() => setIsOrdersOpen(true)}
-        onOpenLogin={handleUserHeaderClick}
-        onOpenWallet={handleOpenProfileWallet}
+        onOpenLogin={handleOpenAuthModal}
+        onOpenProfile={handleOpenProfileModal}
+        onOpenWallet={handleOpenProfileModal}
         onOpenSupport={handleOpenSupport}
       />
 
@@ -333,6 +364,12 @@ export const App = () => {
       <main className="flex-1">
         {currentView === 'how-it-works' ? (
           <HowItWorksPage onGoToMarketplace={() => setCurrentView('marketplace')} />
+        ) : currentView === 'profile' ? (
+          <UserProfileSection
+            userProfile={userProfile}
+            onSaveProfile={handleSaveProfile}
+            onShowToast={showToast}
+          />
         ) : (
           <div>
             {/* PURE FULL-BLEED VIDEO HERO SECTION */}
@@ -653,6 +690,7 @@ export const App = () => {
         transactions={transactions}
         onClearOrders={handleClearOrders}
         onProceedPayment={handleProceedPayment}
+        onUpdateTransaction={handleUpdateTransaction}
         onShowToast={showToast}
       />
 
@@ -671,26 +709,18 @@ export const App = () => {
         onAddReview={handleAddReview}
       />
 
-      <LoginModal
+      <AuthModal
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
         onSaveProfile={handleSaveProfile}
         onShowToast={showToast}
       />
 
-      <UserProfileModal
+      <NewProfileModal
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
         userProfile={userProfile}
-        transactions={transactions}
-        normalWalletBalance={normalWalletBalance}
-        virtualWalletBalance={virtualWalletBalance}
-        onAddNormalWallet={handleAddNormalWallet}
-        onAddVirtualWallet={handleAddVirtualWallet}
-        onUpdateTransaction={handleUpdateTransaction}
-        initialTab={profileTab}
         onSaveProfile={handleSaveProfile}
-        onLogout={handleLogout}
         onShowToast={showToast}
       />
 

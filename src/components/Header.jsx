@@ -1,7 +1,7 @@
 import React from 'react';
 import { ShoppingCart, User, BookOpen, Layers, Headphones, Wallet } from 'lucide-react';
 
-export const Header = ({ currentView, onNavigate, ordersCount, userProfile, walletBalance = 0, onOpenOrders, onOpenLogin, onOpenWallet, onOpenSupport }) => {
+export const Header = ({ currentView, onNavigate, ordersCount, userProfile, walletBalance = 0, onOpenOrders, onOpenLogin, onOpenProfile, onOpenWallet, onOpenSupport }) => {
   const isLoggedIn = userProfile && userProfile.isLoggedIn;
   const displayName = isLoggedIn && userProfile.firstName ? userProfile.firstName : 'Profile';
   const avatarUrl = userProfile && userProfile.avatarUrl ? userProfile.avatarUrl : '/assets/avatars/men1.jpg';
@@ -45,6 +45,7 @@ export const Header = ({ currentView, onNavigate, ordersCount, userProfile, wall
             <span>Marketplace</span>
           </button>
           <button
+            type="button"
             onClick={() => onNavigate('how-it-works')}
             className={`px-4.5 py-1.5 rounded-full text-xs font-['Satoshi'] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
               currentView === 'how-it-works'
@@ -57,10 +58,10 @@ export const Header = ({ currentView, onNavigate, ordersCount, userProfile, wall
           </button>
         </div>
 
-        {/* Top Right Corner Actions: Support, Wallet, User Profile / Login & Cart */}
+        {/* Top Right Corner Actions: Support, Profile & Cart */}
         <div className="flex items-center gap-2 sm:gap-4 shrink-0 font-['Satoshi']">
           
-          {/* TOP RIGHT CORNER: SUPPORT, WALLET, LOGIN/PROFILE & CART BUTTONS */}
+          {/* TOP RIGHT CORNER: SUPPORT, PROFILE & CART BUTTONS */}
           <div className="flex items-center gap-2.5 sm:gap-4 pl-1.5 sm:pl-2 border-l border-purple-100 shrink-0">
             
             {/* SUPPORT BUTTON */}
@@ -81,45 +82,38 @@ export const Header = ({ currentView, onNavigate, ordersCount, userProfile, wall
               </span>
             </button>
 
-            {/* WALLET BUTTON */}
+            {/* USER PROFILE ICON BUTTON (NEXT TO CART) */}
             <button
               type="button"
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                if (onOpenWallet) onOpenWallet();
+                if (typeof onOpenProfile === 'function') {
+                  onOpenProfile();
+                } else if (typeof onOpenLogin === 'function') {
+                  onOpenLogin();
+                }
               }}
-              className="flex flex-col items-center justify-center group cursor-pointer transition-transform active:scale-95"
-              title="View User Wallet & Balance"
+              className="flex flex-col items-center justify-center group cursor-pointer transition-transform active:scale-95 relative z-50"
+              title="My Profile & Settings"
             >
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-purple-200 flex items-center justify-center text-purple-700 bg-purple-50 group-hover:border-purple-700 group-hover:bg-purple-100 transition-colors relative">
-                <Wallet className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 stroke-[2.2]" />
-              </div>
-              <span className="text-[10.5px] sm:text-xs font-['Satoshi'] font-black text-purple-700 mt-0.5 tracking-tight font-mono">
-                ₹{(walletBalance || 0).toLocaleString()}
-              </span>
-            </button>
-
-            {/* USER PROFILE / LOGIN BUTTON */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onOpenLogin) onOpenLogin();
-              }}
-              className="flex flex-col items-center justify-center group cursor-pointer transition-transform active:scale-95 max-w-[65px] sm:max-w-[80px]"
-              title={isLoggedIn ? `Logged in as ${displayName}` : 'Login to Account'}
-            >
-              {avatarUrl ? (
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden border-2 border-purple-600 shadow-xs">
-                  <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
-                </div>
+              {isLoggedIn ? (
+                avatarUrl ? (
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden border-2 border-purple-600 shadow-xs pointer-events-none">
+                    <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover pointer-events-none" />
+                  </div>
+                ) : (
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-[#1e1035] flex items-center justify-center text-[#1e1035] group-hover:border-purple-700 group-hover:text-purple-700 transition-colors pointer-events-none">
+                    <User className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 stroke-[2.2] pointer-events-none" />
+                  </div>
+                )
               ) : (
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-[#1e1035] flex items-center justify-center text-[#1e1035] group-hover:border-purple-700 group-hover:text-purple-700 transition-colors">
-                  <User className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 stroke-[2.2]" />
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-purple-300 flex items-center justify-center text-purple-800 bg-purple-100 group-hover:border-purple-700 group-hover:bg-purple-200 transition-colors pointer-events-none">
+                  <User className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 stroke-[2.2] pointer-events-none" />
                 </div>
               )}
-              <span className="text-[10.5px] sm:text-xs font-['Satoshi'] font-extrabold text-[#1e1035] group-hover:text-purple-700 transition-colors mt-0.5 tracking-tight truncate w-full text-center">
-                {displayName}
+              <span className="text-[10.5px] sm:text-xs font-['Satoshi'] font-extrabold text-[#1e1035] group-hover:text-purple-700 transition-colors mt-0.5 tracking-tight pointer-events-none">
+                {isLoggedIn ? displayName : 'Sign In'}
               </span>
             </button>
 

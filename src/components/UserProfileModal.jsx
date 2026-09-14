@@ -732,7 +732,7 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, transactions, n
                         type="text"
                         value={adminUsernameInput}
                         onChange={(e) => setAdminUsernameInput(e.target.value)}
-                        placeholder="Enter Admin ID (e.g. darkerzoneyt)"
+                        placeholder="Enter Admin Username"
                         required
                         className="w-full h-11 pl-10 pr-4 bg-slate-900 border border-slate-700 rounded-xl text-sm font-mono text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400 font-bold"
                       />
@@ -751,7 +751,7 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, transactions, n
                         type="password"
                         value={adminPasswordInput}
                         onChange={(e) => setAdminPasswordInput(e.target.value)}
-                        placeholder="Enter Admin Password (e.g. Rgbro@779!)"
+                        placeholder="Enter Admin Password"
                         minLength={10}
                         required
                         className="w-full h-11 pl-10 pr-4 bg-slate-900 border border-slate-700 rounded-xl text-sm font-mono text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400 font-bold"
