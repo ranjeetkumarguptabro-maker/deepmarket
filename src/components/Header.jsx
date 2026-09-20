@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingCart, User, BookOpen, Layers, Headphones, Wallet, Shield, LogOut } from 'lucide-react';
+import { ShoppingCart, User, BookOpen, Layers, Headphones, Wallet, Shield } from 'lucide-react';
 
 export const Header = ({ 
   currentView, 
@@ -11,9 +11,7 @@ export const Header = ({
   onOpenLogin, 
   onOpenProfile, 
   onOpenWallet, 
-  onOpenSupport,
-  onOpenAdmin,
-  onLogout
+  onOpenSupport
 }) => {
   const isLoggedIn = userProfile && userProfile.isLoggedIn;
   const displayName = isLoggedIn && userProfile.firstName ? userProfile.firstName : 'Profile';
@@ -145,26 +143,6 @@ export const Header = ({
                 {isLoggedIn ? displayName : 'Sign In'}
               </span>
             </button>
-
-            {/* QUICK LOGOUT BUTTON (SHOWN WHEN LOGGED IN) */}
-            {isLoggedIn && onLogout && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onLogout();
-                }}
-                className="flex flex-col items-center justify-center group cursor-pointer transition-transform active:scale-95"
-                title="Log Out Session"
-              >
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-rose-200 flex items-center justify-center text-rose-600 bg-rose-50 group-hover:border-rose-400 group-hover:bg-rose-100 transition-colors">
-                  <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                </div>
-                <span className="text-[10px] sm:text-[11px] font-['Satoshi'] font-bold text-rose-700 group-hover:text-rose-900 transition-colors mt-0.5 tracking-tight">
-                  Logout
-                </span>
-              </button>
-            )}
 
             {/* CART / ORDERS BUTTON */}
             <button

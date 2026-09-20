@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, MapPin, Save, Camera, CheckCircle2, ShieldCheck, CreditCard, Sparkles, Globe, KeyRound } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Save, Camera, CheckCircle2, ShieldCheck, CreditCard, Sparkles, Globe, KeyRound, LogOut } from 'lucide-react';
 import { sanitizeText, validateFileUpload } from '../lib/security';
 
-export const UserProfileSection = ({ userProfile, onSaveProfile, onShowToast }) => {
+export const UserProfileSection = ({ userProfile, onSaveProfile, onLogout, onShowToast }) => {
   const [firstName, setFirstName] = useState(userProfile?.firstName || 'Ranjeet');
   const [surname, setSurname] = useState(userProfile?.surname || 'Gupta');
   const [gmail, setGmail] = useState(userProfile?.gmail || 'ranjeet.gupta@deepmarket.org');
@@ -260,8 +260,8 @@ export const UserProfileSection = ({ userProfile, onSaveProfile, onShowToast }) 
           </div>
         </div>
 
-        {/* SUBMIT BUTTON */}
-        <div className="pt-4 border-t border-purple-100">
+        {/* SUBMIT & LOGOUT BUTTONS */}
+        <div className="pt-4 border-t border-purple-100 space-y-3">
           <button
             type="submit"
             className="glass-btn w-full h-13 rounded-full font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2.5 cursor-pointer shadow-xl transition-transform active:scale-[0.99]"
@@ -278,6 +278,17 @@ export const UserProfileSection = ({ userProfile, onSaveProfile, onShowToast }) 
               </>
             )}
           </button>
+
+          {onLogout && (
+            <button
+              type="button"
+              onClick={onLogout}
+              className="w-full h-12 rounded-full bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-700 border-2 border-rose-200 font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-all shadow-sm"
+            >
+              <LogOut className="w-4 h-4 text-rose-600" />
+              <span>Log Out of Account</span>
+            </button>
+          )}
         </div>
 
       </form>

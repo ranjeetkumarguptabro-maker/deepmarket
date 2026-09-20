@@ -176,6 +176,7 @@ export const App = () => {
     } catch (e) {
       console.warn("Failed to clear user profile", e);
     }
+    setCurrentView('marketplace');
     showToast("Logged out successfully.");
   };
 
@@ -409,6 +410,7 @@ export const App = () => {
           <UserProfileSection
             userProfile={userProfile}
             onSaveProfile={handleSaveProfile}
+            onLogout={handleLogout}
             onShowToast={showToast}
           />
         ) : (
