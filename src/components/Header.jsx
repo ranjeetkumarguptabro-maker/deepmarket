@@ -24,19 +24,32 @@ export const Header = ({
         
         {/* Brand Logo & Title */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div 
-            onClick={() => onNavigate('marketplace')}
+          <a 
+            href="http://localhost:3000/"
+            onClick={(e) => {
+              if (window.location.origin === 'http://localhost:3000' && onNavigate) {
+                e.preventDefault();
+                onNavigate('marketplace');
+              }
+            }}
             className="relative flex items-center justify-center w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-purple-100/70 border border-purple-200 p-1.5 sm:p-2 shadow-xs cursor-pointer hover:bg-purple-200/80 transition-all shrink-0"
+            title="DeepMarket - http://localhost:3000/"
           >
             <img src="/assets/dm_logo_original_black.png" alt="DeepMarket Logo" className="w-full h-full object-contain" />
-          </div>
+          </a>
           <div className="min-w-0">
-            <h1 
-              onClick={() => onNavigate('marketplace')}
-              className="font-['Satoshi'] text-lg sm:text-2xl font-black tracking-tight text-[#1e1035] cursor-pointer truncate"
+            <a 
+              href="http://localhost:3000/"
+              onClick={(e) => {
+                if (window.location.origin === 'http://localhost:3000' && onNavigate) {
+                  e.preventDefault();
+                  onNavigate('marketplace');
+                }
+              }}
+              className="font-['Satoshi'] text-lg sm:text-2xl font-black tracking-tight text-[#1e1035] cursor-pointer truncate block hover:text-purple-700 transition-colors"
             >
               DeepMarket
-            </h1>
+            </a>
             <p className="text-[9.5px] sm:text-[11px] text-[#6e5a8e] font-['Satoshi'] font-semibold hidden xs:block tracking-tight mt-0.5 truncate">
               Premium Virtual Cards, Delivered Instantly
             </p>
