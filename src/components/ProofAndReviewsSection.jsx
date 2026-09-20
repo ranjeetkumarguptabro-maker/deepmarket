@@ -6,11 +6,11 @@ export const ProofAndReviewsSection = ({ onOpenReviews, onOpenBuyCourse }) => {
 
   // Verified Proof Feed Log Data
   const proofLogs = [
-    { id: 'TX-98402', item: 'Shadow Suite (₹11,920 Balance)', method: 'Instant Demo UPI', amount: '₹1,430', status: 'Delivered', time: '2 mins ago', utr: 'UTR99840281' },
-    { id: 'TX-98401', item: 'Carding Masterclass Course', method: 'Instant Demo UPI', amount: '₹400', status: 'Active', time: '5 mins ago', utr: 'UTR99840112' },
-    { id: 'TX-98399', item: 'Ananya Gold Mastercard', method: 'Crypto (LTC)', amount: '₹1,900', status: 'Admin Approved', time: '12 mins ago', utr: 'LTC-CONF-449' },
-    { id: 'TX-98397', item: 'Beta Suite (₹8,320 Balance)', method: 'Instant Demo UPI', amount: '₹1,000', status: 'Delivered', time: '18 mins ago', utr: 'UTR99839745' },
-    { id: 'TX-98394', item: 'Arjun Neon Black Mastercard', method: 'Crypto (LTC)', amount: '₹2,750', status: 'Admin Approved', time: '25 mins ago', utr: 'LTC-CONF-410' },
+    { id: 'TX-98402', item: 'Shadow Suite (₹11,920 Balance)', method: 'Crypto (BTC)', amount: '₹1,430', status: 'Payment Confirmed', time: '2 mins ago', utr: 'BTC-CONF-802' },
+    { id: 'TX-98401', item: 'Carding Masterclass Course', method: 'Crypto (LTC)', amount: '₹400', status: 'Payment Confirmed', time: '5 mins ago', utr: 'LTC-CONF-701' },
+    { id: 'TX-98399', item: 'Ananya Gold Mastercard', method: 'Crypto (LTC)', amount: '₹1,900', status: 'Payment Confirmed', time: '12 mins ago', utr: 'LTC-CONF-449' },
+    { id: 'TX-98397', item: 'Beta Suite (₹8,320 Balance)', method: 'Crypto (BTC)', amount: '₹1,000', status: 'Payment Confirmed', time: '18 mins ago', utr: 'BTC-CONF-597' },
+    { id: 'TX-98394', item: 'Arjun Neon Black Mastercard', method: 'Crypto (LTC)', amount: '₹2,750', status: 'Payment Confirmed', time: '25 mins ago', utr: 'LTC-CONF-410' },
   ];
 
   // Customer Reviews Data - Exactly 2 Native Indian Face Photos & Diverse Initials/Badges
@@ -58,7 +58,7 @@ export const ProofAndReviewsSection = ({ onOpenReviews, onOpenBuyCourse }) => {
       rating: 4.3,
       date: "3 days ago",
       item: "Maya Bronze Mastercard",
-      comment: "Smooth instant demo UPI payment gateway! Got my card details right after confirmation with complete UTR log.",
+      comment: "Smooth instant crypto payment! Submitted my BTC TXID and admin confirmed it within 2 minutes. Got my card credentials immediately.",
       verified: true
     },
     {
@@ -214,7 +214,7 @@ export const ProofAndReviewsSection = ({ onOpenReviews, onOpenBuyCourse }) => {
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Instant demo UPI & LTC payment gateway verification</span>
+                    <span>Instant Bitcoin (BTC) &amp; Litecoin (LTC) payment verification</span>
                   </li>
                 </ul>
               </div>

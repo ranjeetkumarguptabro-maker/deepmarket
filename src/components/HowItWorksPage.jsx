@@ -169,12 +169,12 @@ export const HowItWorksPage = ({ onGoToMarketplace }) => {
               <div className="w-12 h-12 rounded-2xl bg-purple-100 border border-purple-200 text-purple-700 font-black text-lg flex items-center justify-center font-mono">
                 02
               </div>
-              <h3 className="font-['Satoshi'] text-xl font-bold text-[#1e1035]">Instant UPI Settlement</h3>
+              <h3 className="font-['Satoshi'] text-xl font-bold text-[#1e1035]">Crypto Payment (BTC / LTC)</h3>
               <p className="text-xs text-[#6e5a8e] leading-relaxed font-medium">
-                Pay seamlessly using dynamic UPI QR codes or tap to launch Google Pay, PhonePe, Paytm, BHIM, or Amazon Pay directly on your phone.
+                Choose between Bitcoin (BTC) or Litecoin (LTC). Scan the official crypto QR code or copy the designated wallet address.
               </p>
               <div className="pt-2 text-xs font-mono font-bold text-purple-700 flex items-center gap-1">
-                <QrCode className="w-3.5 h-3.5 text-purple-600" /> Live Gateway Session
+                <QrCode className="w-3.5 h-3.5 text-purple-600" /> Dynamic Crypto QR Code
               </div>
             </div>
 
@@ -183,12 +183,12 @@ export const HowItWorksPage = ({ onGoToMarketplace }) => {
               <div className="w-12 h-12 rounded-2xl bg-purple-100 border border-purple-200 text-purple-700 font-black text-lg flex items-center justify-center font-mono">
                 03
               </div>
-              <h3 className="font-['Satoshi'] text-xl font-bold text-[#1e1035]">UTR Verification</h3>
+              <h3 className="font-['Satoshi'] text-xl font-bold text-[#1e1035]">TXID &amp; Proof Verification</h3>
               <p className="text-xs text-[#6e5a8e] leading-relaxed font-medium">
-                Key in your 8-22 character banking UTR reference ID to verify payment and register the order into your cart ledger.
+                Provide your blockchain Transaction ID (TXID) along with your payment screenshot. Store admin confirms receipt on the ledger.
               </p>
               <div className="pt-2 text-xs font-mono font-bold text-purple-700 flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-purple-600" /> 256-Bit Encrypted
+                <ShieldCheck className="w-3.5 h-3.5 text-purple-600" /> Admin Blockchain Verification
               </div>
             </div>
 

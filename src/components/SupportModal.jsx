@@ -12,7 +12,7 @@ const FAQ_ITEMS = [
     id: 2,
     category: "Payments",
     question: "Which payment methods are supported?",
-    answer: "We support major encrypted payment methods including Instant UPI (Google Pay, PhonePe, Paytm), BHIM, and leading Cryptocurrencies (USDT, LTC, ETH) with zero transaction fees."
+    answer: "We support direct cryptocurrency payments exclusively: Bitcoin (BTC) and Litecoin (LTC) with zero third-party processing fees. Simply submit your payment Transaction ID (TXID) and screenshot for admin verification."
   },
   {
     id: 3,

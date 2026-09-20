@@ -33,6 +33,7 @@ export const App = () => {
   const [profileTab, setProfileTab] = useState('profile'); // 'profile' | 'orders'
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [isGatewayOpen, setIsGatewayOpen] = useState(false);
+  const [isAdminViewModal, setIsAdminViewModal] = useState(false);
 
   const DEFAULT_USER_PROFILE = {
     firstName: 'Ranjeet',
@@ -202,16 +203,16 @@ export const App = () => {
       processingSla: suite.processingSla,
       status: 'pending',
       date: new Date().toLocaleString(),
-      paymentMethod: 'Crypto / UPI'
+      paymentMethod: 'Crypto (BTC / LTC)'
     };
     handleAddTransaction(newTx);
     showToast(`Added ${suite.name} to Cart!`);
   };
 
   const handleProceedPayment = (item) => {
-    setGatewayOrderItem(item);
+    setSelectedSuite(item);
     setIsOrdersOpen(false);
-    setIsGatewayOpen(true);
+    setIsCheckoutOpen(true);
   };
 
   const handlePaymentSuccess = (verifiedItem) => {
@@ -313,8 +314,17 @@ export const App = () => {
     setIsLoginOpen(false);
     setIsSupportOpen(false);
     setIsGatewayOpen(false);
-    setProfileTab('orders');
-    setIsProfileOpen(true);
+    setIsAdminViewModal(false);
+    setIsOrdersOpen(true);
+  };
+
+  const handleOpenAdminPanel = () => {
+    setIsLoginOpen(false);
+    setIsProfileOpen(false);
+    setIsSupportOpen(false);
+    setIsGatewayOpen(false);
+    setIsAdminViewModal(true);
+    setIsOrdersOpen(true);
   };
 
   const handleOpenProfileWallet = () => {
@@ -353,7 +363,11 @@ export const App = () => {
         ordersCount={transactions.length}
         userProfile={userProfile}
         walletBalance={normalWalletBalance}
-        onOpenOrders={() => setIsOrdersOpen(true)}
+        onOpenOrders={() => {
+          setIsAdminViewModal(false);
+          setIsOrdersOpen(true);
+        }}
+        onOpenAdmin={handleOpenAdminPanel}
         onOpenLogin={handleOpenAuthModal}
         onOpenProfile={handleOpenProfileModal}
         onOpenWallet={handleOpenProfileModal}
@@ -682,16 +696,21 @@ export const App = () => {
         onAddTransaction={handleAddTransaction}
         onOpenOrders={handleOpenProfileOrders}
         onShowToast={showToast}
+        userProfile={userProfile}
       />
 
       <OrdersModal
         isOpen={isOrdersOpen}
-        onClose={() => setIsOrdersOpen(false)}
+        onClose={() => {
+          setIsOrdersOpen(false);
+          setIsAdminViewModal(false);
+        }}
         transactions={transactions}
         onClearOrders={handleClearOrders}
         onProceedPayment={handleProceedPayment}
         onUpdateTransaction={handleUpdateTransaction}
         onShowToast={showToast}
+        initialAdminView={isAdminViewModal}
       />
 
       <PaymentGatewayModal

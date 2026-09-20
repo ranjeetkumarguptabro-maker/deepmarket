@@ -1,7 +1,19 @@
 import React from 'react';
-import { ShoppingCart, User, BookOpen, Layers, Headphones, Wallet } from 'lucide-react';
+import { ShoppingCart, User, BookOpen, Layers, Headphones, Wallet, Shield } from 'lucide-react';
 
-export const Header = ({ currentView, onNavigate, ordersCount, userProfile, walletBalance = 0, onOpenOrders, onOpenLogin, onOpenProfile, onOpenWallet, onOpenSupport }) => {
+export const Header = ({ 
+  currentView, 
+  onNavigate, 
+  ordersCount, 
+  userProfile, 
+  walletBalance = 0, 
+  onOpenOrders, 
+  onOpenLogin, 
+  onOpenProfile, 
+  onOpenWallet, 
+  onOpenSupport,
+  onOpenAdmin
+}) => {
   const isLoggedIn = userProfile && userProfile.isLoggedIn;
   const displayName = isLoggedIn && userProfile.firstName ? userProfile.firstName : 'Profile';
   const avatarUrl = userProfile && userProfile.avatarUrl ? userProfile.avatarUrl : '/assets/avatars/men1.jpg';
@@ -58,12 +70,29 @@ export const Header = ({ currentView, onNavigate, ordersCount, userProfile, wall
           </button>
         </div>
 
-        {/* Top Right Corner Actions: Support, Profile & Cart */}
+        {/* Top Right Corner Actions: Admin, Support, Profile & Cart */}
         <div className="flex items-center gap-2 sm:gap-4 shrink-0 font-['Satoshi']">
           
-          {/* TOP RIGHT CORNER: SUPPORT, PROFILE & CART BUTTONS */}
-          <div className="flex items-center gap-2.5 sm:gap-4 pl-1.5 sm:pl-2 border-l border-purple-100 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 pl-1.5 sm:pl-2 border-l border-purple-100 shrink-0">
             
+            {/* ADMIN PANEL BUTTON */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenAdmin) onOpenAdmin();
+              }}
+              className="flex flex-col items-center justify-center group cursor-pointer transition-transform active:scale-95"
+              title="Store Admin Verification Panel"
+            >
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-amber-300 flex items-center justify-center text-amber-800 bg-amber-50 group-hover:border-amber-600 group-hover:bg-amber-100 transition-colors">
+                <Shield className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 stroke-[2.2]" />
+              </div>
+              <span className="text-[10.5px] sm:text-xs font-['Satoshi'] font-black text-amber-900 group-hover:text-amber-700 transition-colors mt-0.5 tracking-tight">
+                Admin
+              </span>
+            </button>
+
             {/* SUPPORT BUTTON */}
             <button
               type="button"
@@ -82,7 +111,7 @@ export const Header = ({ currentView, onNavigate, ordersCount, userProfile, wall
               </span>
             </button>
 
-            {/* USER PROFILE ICON BUTTON (NEXT TO CART) */}
+            {/* USER PROFILE ICON BUTTON */}
             <button
               type="button"
               onClick={(e) => {
@@ -117,7 +146,7 @@ export const Header = ({ currentView, onNavigate, ordersCount, userProfile, wall
               </span>
             </button>
 
-            {/* CART BUTTON */}
+            {/* CART / ORDERS BUTTON */}
             <button
               type="button"
               onClick={(e) => {
