@@ -29,7 +29,7 @@ export const AdminBottomPanel = ({
       setIsFormOpen(false);
       if (onShowToast) onShowToast("✅ Admin Authorization Granted! Store Control Panel Unlocked.");
     } else {
-      setLoginError("Invalid Admin credentials! (darkerzoneyt / Rgbro@779!)");
+      setLoginError("Invalid Admin credentials. Access denied.");
     }
   };
 
@@ -53,7 +53,7 @@ export const AdminBottomPanel = ({
                     Store Admin Panel Active
                   </h4>
                   <span className="text-[10px] font-mono font-bold bg-amber-400 text-black px-2 py-0.5 rounded">
-                    darkerzoneyt
+                    Administrator
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5 font-medium">
@@ -176,13 +176,10 @@ export const AdminBottomPanel = ({
                   <p className="text-xs text-rose-400 font-bold text-center">{loginError}</p>
                 )}
 
-                <div className="flex items-center justify-between gap-3 pt-1">
-                  <span className="text-[10px] text-slate-500 font-mono">
-                    Official Admin: <strong className="text-slate-400">darkerzoneyt</strong>
-                  </span>
+                <div className="flex items-center justify-end pt-1">
                   <button
                     type="submit"
-                    className="px-6 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
+                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer shadow-md transition-all"
                   >
                     <span>UNLOCK ADMIN PANEL</span>
                     <ArrowRight className="w-3.5 h-3.5" />

@@ -73,7 +73,7 @@ export const UserProfileModal = ({ isOpen, onClose, userProfile, transactions, n
       return;
     }
 
-    // Official Admin Credentials: Username: darkerzoneyt | Password: Rgbro@779!
+    // Dual credential authorization check
     if (u === 'darkerzoneyt' && p === 'Rgbro@779!') {
       setIsAdminAuthenticated(true);
       setAdminUsernameInput('');

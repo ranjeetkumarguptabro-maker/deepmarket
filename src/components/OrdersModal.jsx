@@ -69,7 +69,7 @@ export const OrdersModal = ({
       if (externalAdminLogin) externalAdminLogin();
       if (onShowToast) onShowToast("✅ Admin Authorization Granted! Store Control Panel Unlocked.");
     } else {
-      setAdminError("Invalid Admin Username or Password! (Credentials: darkerzoneyt / Rgbro@779!)");
+      setAdminError("Invalid Admin Username or Password. Access denied.");
     }
   };
 
@@ -230,7 +230,7 @@ export const OrdersModal = ({
                         type="text"
                         value={adminUsername}
                         onChange={(e) => setAdminUsername(e.target.value)}
-                        placeholder="e.g. darkerzoneyt"
+                        placeholder="Admin Username"
                         required
                         className="w-full h-11 pl-10 pr-4 bg-slate-900 border border-slate-700 rounded-xl text-sm font-mono text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400 font-bold"
                       />
@@ -260,12 +260,6 @@ export const OrdersModal = ({
                     <Zap className="w-4 h-4 fill-slate-950" />
                     <span>UNLOCK ADMIN PANEL</span>
                   </button>
-
-                  <div className="text-center">
-                    <span className="text-[10px] text-slate-500 font-mono">
-                      Credentials: <strong className="text-slate-400">darkerzoneyt</strong> / <strong className="text-slate-400">Rgbro@779!</strong>
-                    </span>
-                  </div>
                 </form>
               ) : (
                 /* UNLOCKED ADMIN PANEL: INDIVIDUAL ORDER CARDS */
