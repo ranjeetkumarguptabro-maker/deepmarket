@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingCart, User, BookOpen, Layers, Headphones, Wallet, Shield } from 'lucide-react';
+import { ShoppingCart, User, BookOpen, Layers, Headphones, Wallet, Shield, LogOut } from 'lucide-react';
 
 export const Header = ({ 
   currentView, 
@@ -12,7 +12,8 @@ export const Header = ({
   onOpenProfile, 
   onOpenWallet, 
   onOpenSupport,
-  onOpenAdmin
+  onOpenAdmin,
+  onLogout
 }) => {
   const isLoggedIn = userProfile && userProfile.isLoggedIn;
   const displayName = isLoggedIn && userProfile.firstName ? userProfile.firstName : 'Profile';
@@ -87,24 +88,6 @@ export const Header = ({
         <div className="flex items-center gap-2 sm:gap-4 shrink-0 font-['Satoshi']">
           
           <div className="flex items-center gap-2.5 sm:gap-3.5 pl-1.5 sm:pl-2 border-l border-purple-100 shrink-0">
-            
-            {/* ADMIN PANEL BUTTON */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onOpenAdmin) onOpenAdmin();
-              }}
-              className="flex flex-col items-center justify-center group cursor-pointer transition-transform active:scale-95"
-              title="Store Admin Verification Panel"
-            >
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-amber-300 flex items-center justify-center text-amber-800 bg-amber-50 group-hover:border-amber-600 group-hover:bg-amber-100 transition-colors">
-                <Shield className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 stroke-[2.2]" />
-              </div>
-              <span className="text-[10.5px] sm:text-xs font-['Satoshi'] font-black text-amber-900 group-hover:text-amber-700 transition-colors mt-0.5 tracking-tight">
-                Admin
-              </span>
-            </button>
 
             {/* SUPPORT BUTTON */}
             <button
@@ -124,20 +107,24 @@ export const Header = ({
               </span>
             </button>
 
-            {/* USER PROFILE ICON BUTTON */}
+            {/* USER PROFILE / SIGN IN BUTTON */}
             <button
               type="button"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (typeof onOpenProfile === 'function') {
-                  onOpenProfile();
-                } else if (typeof onOpenLogin === 'function') {
-                  onOpenLogin();
+                if (!isLoggedIn) {
+                  if (typeof onOpenLogin === 'function') {
+                    onOpenLogin();
+                  }
+                } else {
+                  if (typeof onOpenProfile === 'function') {
+                    onOpenProfile();
+                  }
                 }
               }}
               className="flex flex-col items-center justify-center group cursor-pointer transition-transform active:scale-95 relative z-50"
-              title="My Profile & Settings"
+              title={isLoggedIn ? "My Profile & Settings" : "Sign In to DeepMarket"}
             >
               {isLoggedIn ? (
                 avatarUrl ? (
@@ -158,6 +145,26 @@ export const Header = ({
                 {isLoggedIn ? displayName : 'Sign In'}
               </span>
             </button>
+
+            {/* QUICK LOGOUT BUTTON (SHOWN WHEN LOGGED IN) */}
+            {isLoggedIn && onLogout && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onLogout();
+                }}
+                className="flex flex-col items-center justify-center group cursor-pointer transition-transform active:scale-95"
+                title="Log Out Session"
+              >
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-rose-200 flex items-center justify-center text-rose-600 bg-rose-50 group-hover:border-rose-400 group-hover:bg-rose-100 transition-colors">
+                  <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </div>
+                <span className="text-[10px] sm:text-[11px] font-['Satoshi'] font-bold text-rose-700 group-hover:text-rose-900 transition-colors mt-0.5 tracking-tight">
+                  Logout
+                </span>
+              </button>
+            )}
 
             {/* CART / ORDERS BUTTON */}
             <button

@@ -19,14 +19,18 @@ export const OrdersModal = ({
   onProceedPayment, 
   onUpdateTransaction, 
   onShowToast,
-  initialAdminView = false 
+  initialAdminView = false,
+  isAdminLoggedIn: externalAdminLoggedIn = false,
+  onAdminLogin: externalAdminLogin,
+  onAdminLogout: externalAdminLogout
 }) => {
   const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
   const [showCvv, setShowCvv] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(initialAdminView);
   const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [localAdminLoggedIn, setLocalAdminLoggedIn] = useState(false);
+  const isAdminLoggedIn = externalAdminLoggedIn || localAdminLoggedIn;
   const [adminError, setAdminError] = useState('');
   const [previewImage, setPreviewImage] = useState(null);
   const [copiedField, setCopiedField] = useState('');
@@ -61,11 +65,17 @@ export const OrdersModal = ({
     e.preventDefault();
     setAdminError('');
     if (adminUsername.trim() === 'darkerzoneyt' && adminPassword === 'Rgbro@779!') {
-      setIsAdminLoggedIn(true);
+      setLocalAdminLoggedIn(true);
+      if (externalAdminLogin) externalAdminLogin();
       if (onShowToast) onShowToast("✅ Admin Authorization Granted! Store Control Panel Unlocked.");
     } else {
       setAdminError("Invalid Admin Username or Password! (Credentials: darkerzoneyt / Rgbro@779!)");
     }
+  };
+
+  const handleAdminLogout = () => {
+    setLocalAdminLoggedIn(false);
+    if (externalAdminLogout) externalAdminLogout();
   };
 
   // ADMIN ACTION: Confirm Payment
@@ -275,7 +285,7 @@ export const OrdersModal = ({
                         {transactions.length} Total {transactions.length === 1 ? 'Order' : 'Orders'}
                       </span>
                       <button
-                        onClick={() => setIsAdminLoggedIn(false)}
+                        onClick={handleAdminLogout}
                         className="px-3 py-1 rounded-lg bg-slate-900 text-white text-xs font-bold hover:bg-black transition-colors cursor-pointer"
                       >
                         Lock Panel

@@ -13,6 +13,7 @@ import { UserProfileSection } from './components/UserProfileSection';
 import { PaymentGatewayModal } from './components/PaymentGatewayModal';
 import { LivePurchaseNotification } from './components/LivePurchaseNotification';
 import { ProofAndReviewsSection } from './components/ProofAndReviewsSection';
+import { AdminBottomPanel } from './components/AdminBottomPanel';
 import { syncUserProfileToSupabase, fetchUserProfileFromSupabase, syncOrderToSupabase, autoSeedSupabaseData } from './lib/supabase';
 import { CARD_SUITES as INITIAL_CARD_SUITES, NETWORK_BRANDS } from './data/cardsData';
 import { ChevronRight, BookOpen, GraduationCap, CheckCircle, Star, ShoppingCart, Tag, Radio, Mail, Smartphone, Shield, LockKeyhole, Headphones } from 'lucide-react';
@@ -34,6 +35,13 @@ export const App = () => {
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [isGatewayOpen, setIsGatewayOpen] = useState(false);
   const [isAdminViewModal, setIsAdminViewModal] = useState(false);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
+    try {
+      return localStorage.getItem('deepmarket_admin_logged_in') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
 
   const DEFAULT_USER_PROFILE = {
     firstName: 'Ranjeet',
@@ -59,12 +67,15 @@ export const App = () => {
       if (savedOrders) {
         setTransactions(JSON.parse(savedOrders));
       }
+      const isLoggedOut = localStorage.getItem('deepmarket_logged_out') === 'true';
       const savedProfile = localStorage.getItem('deepmarket_user_profile');
       if (savedProfile) {
         setUserProfile(JSON.parse(savedProfile));
-      } else {
+      } else if (!isLoggedOut) {
         setUserProfile(DEFAULT_USER_PROFILE);
         localStorage.setItem('deepmarket_user_profile', JSON.stringify(DEFAULT_USER_PROFILE));
+      } else {
+        setUserProfile(null);
       }
       const savedNormalWallet = localStorage.getItem('deepmarket_normal_wallet');
       if (savedNormalWallet) {
@@ -75,19 +86,21 @@ export const App = () => {
         setVirtualWalletBalance(parseInt(savedVirtualWallet, 10));
       }
 
-      // Fetch user profile from Supabase Project bfqrmgmnzmgdzboamjhd
-      fetchUserProfileFromSupabase('rnejet3').then((supabaseProfile) => {
-        if (supabaseProfile) {
-          setUserProfile((prev) => ({
-            ...prev,
-            ...supabaseProfile,
-            isLoggedIn: true
-          }));
-          if (supabaseProfile.normalWalletBalance !== undefined) {
-            setNormalWalletBalance(supabaseProfile.normalWalletBalance);
+      // Fetch user profile from Supabase Project bfqrmgmnzmgdzboamjhd if not explicitly logged out
+      if (!isLoggedOut) {
+        fetchUserProfileFromSupabase('rnejet3').then((supabaseProfile) => {
+          if (supabaseProfile) {
+            setUserProfile((prev) => ({
+              ...prev,
+              ...supabaseProfile,
+              isLoggedIn: true
+            }));
+            if (supabaseProfile.normalWalletBalance !== undefined) {
+              setNormalWalletBalance(supabaseProfile.normalWalletBalance);
+            }
           }
-        }
-      });
+        });
+      }
     } catch (e) {
       console.warn("Failed to read data from localStorage", e);
     }
@@ -105,16 +118,21 @@ export const App = () => {
 
   // Save user profile & Sync to Supabase
   const handleSaveProfile = (profileData) => {
-    setUserProfile(profileData);
+    const activeProfile = {
+      ...profileData,
+      isLoggedIn: true
+    };
+    setUserProfile(activeProfile);
     try {
-      localStorage.setItem('deepmarket_user_profile', JSON.stringify(profileData));
+      localStorage.setItem('deepmarket_user_profile', JSON.stringify(activeProfile));
+      localStorage.removeItem('deepmarket_logged_out');
     } catch (e) {
       console.warn("Failed to save user profile", e);
     }
 
     // Shift user profile data to Supabase
     syncUserProfileToSupabase({
-      ...profileData,
+      ...activeProfile,
       username: 'rnejet3',
       normalWalletBalance: normalWalletBalance
     });
@@ -154,6 +172,7 @@ export const App = () => {
     setUserProfile(null);
     try {
       localStorage.removeItem('deepmarket_user_profile');
+      localStorage.setItem('deepmarket_logged_out', 'true');
     } catch (e) {
       console.warn("Failed to clear user profile", e);
     }
@@ -279,19 +298,8 @@ export const App = () => {
     setIsSupportOpen(false);
     setIsGatewayOpen(false);
     if (!userProfile || !userProfile.isLoggedIn) {
-      const activeProfile = {
-        firstName: 'Ranjeet',
-        surname: 'Gupta',
-        gmail: 'ranjeet.gupta@deepmarket.org',
-        avatarUrl: '/assets/avatars/men1.jpg',
-        isLoggedIn: true
-      };
-      setUserProfile(activeProfile);
-      try {
-        localStorage.setItem('deepmarket_user_profile', JSON.stringify(activeProfile));
-      } catch (e) {
-        // ignore
-      }
+      handleOpenAuthModal();
+      return;
     }
     setIsProfileOpen(false);
     setTimeout(() => {
@@ -325,6 +333,25 @@ export const App = () => {
     setIsGatewayOpen(false);
     setIsAdminViewModal(true);
     setIsOrdersOpen(true);
+  };
+
+  const handleAdminLogin = () => {
+    setIsAdminLoggedIn(true);
+    try {
+      localStorage.setItem('deepmarket_admin_logged_in', 'true');
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const handleAdminLogout = () => {
+    setIsAdminLoggedIn(false);
+    try {
+      localStorage.removeItem('deepmarket_admin_logged_in');
+    } catch (e) {
+      // ignore
+    }
+    showToast("Admin session locked.");
   };
 
   const handleOpenProfileWallet = () => {
@@ -367,11 +394,11 @@ export const App = () => {
           setIsAdminViewModal(false);
           setIsOrdersOpen(true);
         }}
-        onOpenAdmin={handleOpenAdminPanel}
         onOpenLogin={handleOpenAuthModal}
         onOpenProfile={handleOpenProfileModal}
         onOpenWallet={handleOpenProfileModal}
         onOpenSupport={handleOpenSupport}
+        onLogout={handleLogout}
       />
 
       {/* Main Content View Switcher */}
@@ -620,6 +647,16 @@ export const App = () => {
         )}
       </main>
 
+      {/* DEDICATED PROPER ADMIN PANEL AT THE BOTTOM */}
+      <AdminBottomPanel
+        isAdminLoggedIn={isAdminLoggedIn}
+        onAdminLogin={handleAdminLogin}
+        onAdminLogout={handleAdminLogout}
+        onOpenAdminPanel={handleOpenAdminPanel}
+        transactions={transactions}
+        onShowToast={showToast}
+      />
+
       {/* FOOTER WITH COMPANY NAME, SUPPORT EMAIL, DATA PRIVACY ASSURANCE, & MOBILE DETAILS */}
       <footer className="py-12 border-t border-purple-100 bg-white text-[#1e1035] font-['Satoshi']">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
@@ -711,6 +748,9 @@ export const App = () => {
         onUpdateTransaction={handleUpdateTransaction}
         onShowToast={showToast}
         initialAdminView={isAdminViewModal}
+        isAdminLoggedIn={isAdminLoggedIn}
+        onAdminLogin={handleAdminLogin}
+        onAdminLogout={handleAdminLogout}
       />
 
       <PaymentGatewayModal
@@ -740,6 +780,7 @@ export const App = () => {
         onClose={() => setIsProfileOpen(false)}
         userProfile={userProfile}
         onSaveProfile={handleSaveProfile}
+        onLogout={handleLogout}
         onShowToast={showToast}
       />
 

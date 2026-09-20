@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, MapPin, Save, Camera, CheckCircle2, ShieldCheck, Globe } from 'lucide-react';
+import { X, User, Mail, Phone, MapPin, Save, Camera, CheckCircle2, ShieldCheck, Globe, LogOut } from 'lucide-react';
 import { sanitizeText, validateFileUpload } from '../lib/security';
 
-export const NewProfileModal = ({ isOpen, onClose, userProfile, onSaveProfile, onShowToast }) => {
+export const NewProfileModal = ({ isOpen, onClose, userProfile, onSaveProfile, onLogout, onShowToast }) => {
   const [firstName, setFirstName] = useState('');
   const [surname, setSurname] = useState('');
   const [gmail, setGmail] = useState('');
@@ -258,8 +258,8 @@ export const NewProfileModal = ({ isOpen, onClose, userProfile, onSaveProfile, o
             </div>
           </div>
 
-          {/* Submit Button */}
-          <div className="pt-2">
+          {/* Submit & Logout Buttons */}
+          <div className="pt-2 space-y-2.5">
             <button
               type="submit"
               className="glass-btn w-full h-12 rounded-full font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer shadow-lg"
@@ -276,6 +276,20 @@ export const NewProfileModal = ({ isOpen, onClose, userProfile, onSaveProfile, o
                 </>
               )}
             </button>
+
+            {onLogout && (
+              <button
+                type="button"
+                onClick={() => {
+                  onLogout();
+                  onClose();
+                }}
+                className="w-full h-11 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-colors"
+              >
+                <LogOut className="w-4 h-4 text-rose-600" />
+                <span>Log Out of Account</span>
+              </button>
+            )}
           </div>
 
         </form>
