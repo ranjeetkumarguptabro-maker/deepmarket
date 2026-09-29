@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, Check, Clock, ShieldCheck, ArrowRight, ShoppingBag, Upload, Image as ImageIcon, CheckCircle, Tag, GraduationCap, PlusCircle, AlertCircle } from 'lucide-react';
+import { X, Copy, Check, Clock, ShieldCheck, ArrowRight, ShoppingBag, Upload, Image as ImageIcon, CheckCircle, Tag, GraduationCap, PlusCircle, AlertCircle, CreditCard, Sparkles } from 'lucide-react';
 import { sanitizeText, checkRateLimit, validateFileUpload } from '../lib/security';
 import { CaptchaWidget } from './CaptchaWidget';
 
@@ -36,6 +36,10 @@ export const CheckoutModal = ({
   onShowToast, 
   userProfile 
 }) => {
+  // Payment Gateway Selection: 'payu' | 'crypto'
+  const [paymentMethodTab, setPaymentMethodTab] = useState('payu');
+  const [payuLoading, setPayuLoading] = useState(false);
+
   // Cryptocurrency Selection: 'BTC' or 'LTC'
   const [selectedCrypto, setSelectedCrypto] = useState('BTC');
 
@@ -165,6 +169,79 @@ export const CheckoutModal = ({
   const handleRemoveScreenshot = () => {
     setScreenshotFile(null);
     setScreenshotPreview('');
+  };
+
+  const handlePayUCheckout = async (e) => {
+    if (e) e.preventDefault();
+    setErrorMessage('');
+
+    if (!customerEmail) {
+      setErrorMessage('Please provide your email address for payment receipt.');
+      if (onShowToast) onShowToast('Email address is required for PayU payment.');
+      return;
+    }
+
+    setPayuLoading(true);
+
+    try {
+      const orderTitle = includeCourseAddon && !isCourseItem 
+        ? `${selectedSuite.name} + Carding Masterclass Course Bundle` 
+        : selectedSuite.name;
+
+      const apiUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:4000/api/payu/create-payment'
+        : '/api/payu/create-payment';
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: totalPaid,
+          productinfo: orderTitle,
+          firstname: (customerName || 'Customer').split(' ')[0],
+          email: customerEmail,
+          phone: customerPhone || '9876543210',
+          suiteId: selectedSuite.id,
+          suiteName: orderTitle,
+          brand: selectedBrand,
+          userId: userProfile?.gmail || 'guest_user'
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Failed to initiate PayU payment.');
+      }
+
+      if (onShowToast) onShowToast('Redirecting to PayU Secure Gateway...');
+
+      // Direct navigation to verified PayU checkout page
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+        return;
+      }
+
+      // Fallback dynamic form submission to PayU
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = data.action;
+
+      Object.entries(data.params).forEach(([key, val]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = val;
+        form.appendChild(input);
+      });
+
+      document.body.appendChild(form);
+      form.submit();
+    } catch (err) {
+      console.error('PayU Payment Error:', err);
+      setErrorMessage(err.message || 'Failed to connect to payment server at http://localhost:4000');
+      if (onShowToast) onShowToast(err.message || 'Payment server unreachable');
+      setPayuLoading(false);
+    }
   };
 
   const handleSubmitPayment = (e) => {
@@ -316,13 +393,17 @@ export const CheckoutModal = ({
         </button>
 
         {!isSuccess ? (
-          <form onSubmit={handleSubmitPayment} className="space-y-4">
+          <form onSubmit={paymentMethodTab === 'payu' ? handlePayUCheckout : handleSubmitPayment} className="space-y-4">
             
             {/* Header */}
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold text-amber-900 bg-amber-100 px-3 py-1 rounded-full uppercase tracking-wider border border-amber-300 flex items-center gap-1">
-                  ⚡ Crypto Only Payment
+                <span className={`text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider border flex items-center gap-1 ${
+                  paymentMethodTab === 'payu'
+                    ? 'text-purple-900 bg-purple-100 border-purple-300'
+                    : 'text-amber-900 bg-amber-100 border-amber-300'
+                }`}>
+                  {paymentMethodTab === 'payu' ? '💳 PayU Gateway' : '⚡ Crypto Transfer'}
                 </span>
                 <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Instant Clearance
@@ -458,255 +539,401 @@ export const CheckoutModal = ({
               </div>
             </div>
 
-            {/* SECTION 1: SELECT CRYPTO PAYMENT */}
-            <div className="space-y-3 pt-1">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-black text-[#1e1035] uppercase tracking-wider">
-                  1. Select Cryptocurrency
-                </label>
-                <span className="text-[10px] text-amber-800 bg-amber-100 font-bold px-2 py-0.5 rounded border border-amber-300">
-                  BTC or LTC Accepted
-                </span>
-              </div>
-
-              {/* Crypto Tabs: Bitcoin (BTC) & Litecoin (LTC) */}
-              <div className="grid grid-cols-2 gap-3">
+            {/* PAYMENT METHOD SELECTION TABS */}
+            <div className="space-y-2 pt-1">
+              <label className="text-xs font-black text-[#1e1035] uppercase tracking-wider block">
+                Select Payment Method
+              </label>
+              <div className="grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
-                  onClick={() => setSelectedCrypto('BTC')}
-                  className={`p-3 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center gap-2 font-bold text-xs ${
-                    selectedCrypto === 'BTC'
-                      ? 'border-amber-500 bg-amber-50 text-amber-950 shadow-md ring-2 ring-amber-400/30'
-                      : 'border-purple-100 bg-white text-[#6e5a8e] hover:border-purple-300 hover:bg-purple-50/50'
+                  onClick={() => { setPaymentMethodTab('payu'); setErrorMessage(''); }}
+                  className={`p-3 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-2.5 text-left ${
+                    paymentMethodTab === 'payu'
+                      ? 'border-purple-600 bg-purple-50 text-purple-950 shadow-md ring-2 ring-purple-400/30'
+                      : 'border-purple-100 bg-white text-[#6e5a8e] hover:border-purple-300'
                   }`}
                 >
-                  <div className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center font-black text-xs">
+                  <div className="w-8 h-8 rounded-xl bg-purple-700 text-white flex items-center justify-center font-black text-xs shrink-0">
+                    <CreditCard className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-extrabold text-xs text-[#1e1035] leading-tight">PayU Gateway</p>
+                    <p className="text-[10px] text-purple-700 font-bold truncate">UPI, Cards, NetBanking</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setPaymentMethodTab('crypto'); setErrorMessage(''); }}
+                  className={`p-3 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-2.5 text-left ${
+                    paymentMethodTab === 'crypto'
+                      ? 'border-amber-500 bg-amber-50 text-amber-950 shadow-md ring-2 ring-amber-400/30'
+                      : 'border-purple-100 bg-white text-[#6e5a8e] hover:border-purple-300'
+                  }`}
+                >
+                  <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-xs shrink-0">
                     ₿
                   </div>
-                  <div className="text-left">
-                    <p className="font-extrabold text-xs leading-none">Bitcoin</p>
-                    <p className="text-[10px] opacity-70 font-mono">BTC</p>
+                  <div className="min-w-0">
+                    <p className="font-extrabold text-xs text-[#1e1035] leading-tight">Crypto</p>
+                    <p className="text-[10px] text-amber-800 font-bold">BTC / LTC</p>
                   </div>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedCrypto('LTC')}
-                  className={`p-3 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center gap-2 font-bold text-xs ${
-                    selectedCrypto === 'LTC'
-                      ? 'border-blue-500 bg-blue-50 text-blue-950 shadow-md ring-2 ring-blue-400/30'
-                      : 'border-purple-100 bg-white text-[#6e5a8e] hover:border-purple-300 hover:bg-purple-50/50'
-                  }`}
-                >
-                  <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-black text-xs font-mono">
-                    Ł
-                  </div>
-                  <div className="text-left">
-                    <p className="font-extrabold text-xs leading-none">Litecoin</p>
-                    <p className="text-[10px] opacity-70 font-mono">LTC</p>
-                  </div>
-                </button>
-              </div>
-
-              {/* DYNAMIC QR CODE & WALLET ADDRESS DISPLAY */}
-              <div className="p-4 rounded-3xl bg-slate-950 text-white border border-slate-800 space-y-4 shadow-lg text-center">
-                
-                {/* Header Tag */}
-                <div className="flex justify-between items-center text-xs">
-                  <span className="font-bold flex items-center gap-1 text-amber-400 text-xs">
-                    <span className="text-base">{activeCrypto.symbol}</span>
-                    <span>{activeCrypto.name} ({activeCrypto.ticker}) Deposit</span>
-                  </span>
-                  <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-[10px] font-mono border border-slate-700">
-                    {activeCrypto.network}
-                  </span>
-                </div>
-
-                {/* QR Code with Dynamic Image Switch */}
-                <div className="flex flex-col items-center justify-center">
-                  <div className="p-3 bg-white rounded-2xl shadow-md border-2 border-purple-300 transition-all duration-300">
-                    <img 
-                      src={activeCrypto.qrImage} 
-                      alt={`${activeCrypto.name} QR Code`} 
-                      className="w-44 h-44 object-contain rounded-lg"
-                      key={activeCrypto.ticker}
-                    />
-                  </div>
-                  <p className="text-[11px] text-slate-400 mt-2 font-medium">
-                    Scan with any {activeCrypto.ticker} wallet app to pay
-                  </p>
-                </div>
-
-                {/* Wallet Address & Copy Button */}
-                <div className="space-y-1.5 text-left">
-                  <label className="text-[10.5px] font-bold text-slate-300 uppercase tracking-wider block">
-                    {activeCrypto.name} Wallet Address
-                  </label>
-                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-700 flex items-center justify-between gap-2">
-                    <span className="text-[11.5px] font-mono font-bold text-amber-300 break-all select-all">
-                      {activeCrypto.address}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleCopyAddress}
-                      className={`px-3 py-2 rounded-lg font-bold text-xs flex items-center gap-1.5 cursor-pointer shrink-0 transition-all ${
-                        copiedAddress 
-                          ? 'bg-emerald-600 text-white' 
-                          : 'bg-amber-500 hover:bg-amber-400 text-slate-950'
-                      }`}
-                      title="Copy Address"
-                    >
-                      {copiedAddress ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 stroke-[3]" />
-                          <span>Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>Copy Address</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-
               </div>
             </div>
 
-            {/* SECTION 2: PAYMENT CONFIRMATION INPUTS */}
-            <div className="space-y-3 pt-2 border-t border-purple-100">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-black text-[#1e1035] uppercase tracking-wider">
-                  2. Payment Confirmation Details
-                </label>
-                <span className="text-[10px] text-purple-700 font-extrabold uppercase">
-                  Required for Admin Approval
-                </span>
-              </div>
+            {/* PAYU GATEWAY SECTION */}
+            {paymentMethodTab === 'payu' && (
+              <div className="space-y-4 pt-1 animate-fade-in">
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100/60 border border-purple-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black bg-purple-700 text-white px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                      PayU India Checkout
+                    </span>
+                    <span className="text-[11px] font-bold text-emerald-800 flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> 100% Encrypted &amp; Verified
+                    </span>
+                  </div>
 
-              {/* Customer Contact Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10.5px] font-bold text-[#6e5a8e] uppercase block mb-1">Your Full Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="e.g. Rahul Sharma"
-                    className="w-full h-10 px-3 bg-purple-50/50 border border-purple-200 rounded-xl text-xs font-semibold text-[#1e1035] focus:outline-none focus:border-purple-600 focus:bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10.5px] font-bold text-[#6e5a8e] uppercase block mb-1">Email / Telegram</label>
-                  <input
-                    type="text"
-                    required
-                    value={customerEmail}
-                    onChange={(e) => setCustomerEmail(e.target.value)}
-                    placeholder="e.g. rahul@gmail.com"
-                    className="w-full h-10 px-3 bg-purple-50/50 border border-purple-200 rounded-xl text-xs font-semibold text-[#1e1035] focus:outline-none focus:border-purple-600 focus:bg-white"
-                  />
-                </div>
-              </div>
+                  <p className="text-xs text-[#6e5a8e]">
+                    Pay directly with <strong>Google Pay, PhonePe, Paytm, Any UPI App, Credit &amp; Debit Cards (Visa, Mastercard, RuPay)</strong>, or <strong>NetBanking</strong>.
+                  </p>
 
-              {/* Transaction ID / TXID Input */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-extrabold text-[#1e1035] uppercase tracking-wider flex justify-between">
-                  <span>Transaction ID / TXID <span className="text-rose-600">*</span></span>
-                  <span className="text-[10px] font-mono text-purple-700">64-Character Blockchain Hash</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={txId}
-                  onChange={(e) => {
-                    setTxId(e.target.value);
-                    if (errorMessage) setErrorMessage('');
-                  }}
-                  placeholder={`Paste your ${activeCrypto.ticker} Transaction ID / Hash (TXID)...`}
-                  className="w-full h-11 px-3.5 bg-purple-50/40 border-2 border-purple-200 rounded-xl text-xs font-mono font-bold text-[#1e1035] placeholder:text-[#6e5a8e]/60 focus:outline-none focus:border-purple-600 focus:bg-white"
-                />
-              </div>
-
-              {/* Payment Screenshot File Upload */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-extrabold text-[#1e1035] uppercase tracking-wider flex justify-between">
-                  <span>Payment Screenshot <span className="text-rose-600">*</span></span>
-                  <span className="text-[10px] text-[#6e5a8e]">PNG, JPG, WEBP (Max 5MB)</span>
-                </label>
-
-                {!screenshotPreview ? (
-                  <label className="border-2 border-dashed border-purple-300 hover:border-purple-500 bg-purple-50/40 hover:bg-purple-50/80 rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all text-center">
-                    <Upload className="w-6 h-6 text-purple-600" />
-                    <span className="text-xs font-bold text-[#1e1035]">Click or Drag &amp; Drop Payment Screenshot</span>
-                    <span className="text-[10.5px] text-[#6e5a8e]">Upload proof of your crypto wallet transfer</span>
-                    <input
-                      type="file"
-                      accept="image/png, image/jpeg, image/webp"
-                      onChange={handleScreenshotUpload}
-                      className="hidden"
-                    />
-                  </label>
-                ) : (
-                  <div className="p-3 rounded-2xl bg-purple-50 border border-purple-200 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <img 
-                        src={screenshotPreview} 
-                        alt="Screenshot Preview" 
-                        className="w-12 h-12 object-cover rounded-xl border border-purple-300 shadow-xs" 
-                      />
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-[#1e1035] truncate">{screenshotFile?.name || 'Payment_Proof.png'}</p>
-                        <p className="text-[10.5px] text-emerald-700 font-semibold flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3 text-emerald-600" /> Screenshot Attached
-                        </p>
+                  {/* Customer Contact Details Required for PayU */}
+                  <div className="space-y-2.5 pt-2 border-t border-purple-200/60">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10.5px] font-bold text-[#6e5a8e] uppercase block mb-1">Your Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={customerName}
+                          onChange={(e) => setCustomerName(e.target.value)}
+                          placeholder="e.g. Rahul Sharma"
+                          className="w-full h-10 px-3 bg-white border border-purple-200 rounded-xl text-xs font-semibold text-[#1e1035] focus:outline-none focus:border-purple-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10.5px] font-bold text-[#6e5a8e] uppercase block mb-1">
+                          Phone Number <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          value={customerPhone}
+                          onChange={(e) => setCustomerPhone(e.target.value)}
+                          placeholder="9876543210"
+                          className="w-full h-10 px-3 bg-white border border-purple-200 rounded-xl text-xs font-semibold text-[#1e1035] focus:outline-none focus:border-purple-600"
+                        />
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleRemoveScreenshot}
-                      className="text-xs text-rose-600 hover:text-rose-800 font-bold px-3 py-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 cursor-pointer transition-colors"
-                    >
-                      Change
-                    </button>
+
+                    <div>
+                      <label className="text-[10.5px] font-bold text-[#6e5a8e] uppercase block mb-1">
+                        Email Address <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={customerEmail}
+                        onChange={(e) => setCustomerEmail(e.target.value)}
+                        placeholder="e.g. rahul@gmail.com"
+                        className="w-full h-10 px-3 bg-white border border-purple-200 rounded-xl text-xs font-semibold text-[#1e1035] focus:outline-none focus:border-purple-600"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Security & Feature Badges */}
+                  <div className="flex items-center gap-1.5 pt-1 text-[10px] font-bold text-purple-900/80 flex-wrap">
+                    <span className="bg-white/80 px-2 py-0.5 rounded border border-purple-200">⚡ Instant Fulfillment</span>
+                    <span className="bg-white/80 px-2 py-0.5 rounded border border-purple-200">🔒 PCI-DSS Level 1</span>
+                    <span className="bg-white/80 px-2 py-0.5 rounded border border-purple-200">🛡️ SHA-512 Security</span>
+                  </div>
+                </div>
+
+                {errorMessage && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{errorMessage}</span>
                   </div>
                 )}
+
+                {/* Submit PayU Payment Button */}
+                <button
+                  type="button"
+                  onClick={handlePayUCheckout}
+                  disabled={payuLoading}
+                  className="w-full h-12 rounded-full font-['Satoshi'] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-50 transition-all hover:scale-[1.01] bg-gradient-to-r from-purple-700 to-indigo-800 text-white hover:from-purple-800 hover:to-indigo-900"
+                >
+                  {payuLoading ? (
+                    <span className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 animate-spin" /> Redirecting to PayU Gateway...
+                    </span>
+                  ) : (
+                    <>
+                      <span>PAY ₹{totalPaid.toLocaleString()} WITH PAYU GATEWAY</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
               </div>
+            )}
 
-              {errorMessage && (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{errorMessage}</span>
+            {/* CRYPTO PAYMENT FLOW (BTC / LTC) */}
+            {paymentMethodTab === 'crypto' && (
+              <div className="space-y-4 pt-1 animate-fade-in">
+                {/* SECTION 1: SELECT CRYPTO PAYMENT */}
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-[#1e1035] uppercase tracking-wider">
+                      1. Select Cryptocurrency
+                    </label>
+                    <span className="text-[10px] text-amber-800 bg-amber-100 font-bold px-2 py-0.5 rounded border border-amber-300">
+                      BTC or LTC Accepted
+                    </span>
+                  </div>
+
+                  {/* Crypto Tabs: Bitcoin (BTC) & Litecoin (LTC) */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCrypto('BTC')}
+                      className={`p-3 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center gap-2 font-bold text-xs ${
+                        selectedCrypto === 'BTC'
+                          ? 'border-amber-500 bg-amber-50 text-amber-950 shadow-md ring-2 ring-amber-400/30'
+                          : 'border-purple-100 bg-white text-[#6e5a8e] hover:border-purple-300 hover:bg-purple-50/50'
+                      }`}
+                    >
+                      <div className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center font-black text-xs">
+                        ₿
+                      </div>
+                      <div className="text-left">
+                        <p className="font-extrabold text-xs leading-none">Bitcoin</p>
+                        <p className="text-[10px] opacity-70 font-mono">BTC</p>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCrypto('LTC')}
+                      className={`p-3 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center gap-2 font-bold text-xs ${
+                        selectedCrypto === 'LTC'
+                          ? 'border-blue-500 bg-blue-50 text-blue-950 shadow-md ring-2 ring-blue-400/30'
+                          : 'border-purple-100 bg-white text-[#6e5a8e] hover:border-purple-300 hover:bg-purple-50/50'
+                      }`}
+                    >
+                      <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-black text-xs font-mono">
+                        Ł
+                      </div>
+                      <div className="text-left">
+                        <p className="font-extrabold text-xs leading-none">Litecoin</p>
+                        <p className="text-[10px] opacity-70 font-mono">LTC</p>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* DYNAMIC QR CODE & WALLET ADDRESS DISPLAY */}
+                  <div className="p-4 rounded-3xl bg-slate-950 text-white border border-slate-800 space-y-4 shadow-lg text-center">
+                    
+                    {/* Header Tag */}
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold flex items-center gap-1 text-amber-400 text-xs">
+                        <span className="text-base">{activeCrypto.symbol}</span>
+                        <span>{activeCrypto.name} ({activeCrypto.ticker}) Deposit</span>
+                      </span>
+                      <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-[10px] font-mono border border-slate-700">
+                        {activeCrypto.network}
+                      </span>
+                    </div>
+
+                    {/* QR Code with Dynamic Image Switch */}
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="p-3 bg-white rounded-2xl shadow-md border-2 border-purple-300 transition-all duration-300">
+                        <img 
+                          src={activeCrypto.qrImage} 
+                          alt={`${activeCrypto.name} QR Code`} 
+                          className="w-44 h-44 object-contain rounded-lg"
+                          key={activeCrypto.ticker}
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-2 font-medium">
+                        Scan with any {activeCrypto.ticker} wallet app to pay
+                      </p>
+                    </div>
+
+                    {/* Wallet Address & Copy Button */}
+                    <div className="space-y-1.5 text-left">
+                      <label className="text-[10.5px] font-bold text-slate-300 uppercase tracking-wider block">
+                        {activeCrypto.name} Wallet Address
+                      </label>
+                      <div className="p-3 bg-slate-900 rounded-xl border border-slate-700 flex items-center justify-between gap-2">
+                        <span className="text-[11.5px] font-mono font-bold text-amber-300 break-all select-all">
+                          {activeCrypto.address}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleCopyAddress}
+                          className={`px-3 py-2 rounded-lg font-bold text-xs flex items-center gap-1.5 cursor-pointer shrink-0 transition-all ${
+                            copiedAddress 
+                              ? 'bg-emerald-600 text-white' 
+                              : 'bg-amber-500 hover:bg-amber-400 text-slate-950'
+                          }`}
+                          title="Copy Address"
+                        >
+                          {copiedAddress ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 stroke-[3]" />
+                              <span>Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>Copy Address</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
                 </div>
-              )}
 
-              {/* Cloudflare Anti-Bot Captcha */}
-              <CaptchaWidget
-                isVerified={isCaptchaVerified}
-                onVerify={(status) => setIsCaptchaVerified(status)}
-              />
+                {/* SECTION 2: PAYMENT CONFIRMATION INPUTS */}
+                <div className="space-y-3 pt-2 border-t border-purple-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-[#1e1035] uppercase tracking-wider">
+                      2. Payment Confirmation Details
+                    </label>
+                    <span className="text-[10px] text-purple-700 font-extrabold uppercase">
+                      Required for Admin Approval
+                    </span>
+                  </div>
 
-              {/* Submit Payment Button */}
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="glass-btn-gradient w-full h-12 rounded-full font-['Satoshi'] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-50 transition-all hover:scale-[1.01]"
-              >
-                {isSubmitting ? (
-                  <span className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 animate-spin" /> Submitting Payment Proof...
-                  </span>
-                ) : (
-                  <>
-                    <span>SUBMIT PAYMENT</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+                  {/* Customer Contact Details */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10.5px] font-bold text-[#6e5a8e] uppercase block mb-1">Your Full Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder="e.g. Rahul Sharma"
+                        className="w-full h-10 px-3 bg-purple-50/50 border border-purple-200 rounded-xl text-xs font-semibold text-[#1e1035] focus:outline-none focus:border-purple-600 focus:bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10.5px] font-bold text-[#6e5a8e] uppercase block mb-1">Email / Telegram</label>
+                      <input
+                        type="text"
+                        required
+                        value={customerEmail}
+                        onChange={(e) => setCustomerEmail(e.target.value)}
+                        placeholder="e.g. rahul@gmail.com"
+                        className="w-full h-10 px-3 bg-purple-50/50 border border-purple-200 rounded-xl text-xs font-semibold text-[#1e1035] focus:outline-none focus:border-purple-600 focus:bg-white"
+                      />
+                    </div>
+                  </div>
 
-            </div>
+                  {/* Transaction ID / TXID Input */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-extrabold text-[#1e1035] uppercase tracking-wider flex justify-between">
+                      <span>Transaction ID / TXID <span className="text-rose-600">*</span></span>
+                      <span className="text-[10px] font-mono text-purple-700">64-Character Blockchain Hash</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={txId}
+                      onChange={(e) => {
+                        setTxId(e.target.value);
+                        if (errorMessage) setErrorMessage('');
+                      }}
+                      placeholder={`Paste your ${activeCrypto.ticker} Transaction ID / Hash (TXID)...`}
+                      className="w-full h-11 px-3.5 bg-purple-50/40 border-2 border-purple-200 rounded-xl text-xs font-mono font-bold text-[#1e1035] placeholder:text-[#6e5a8e]/60 focus:outline-none focus:border-purple-600 focus:bg-white"
+                    />
+                  </div>
+
+                  {/* Payment Screenshot File Upload */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-extrabold text-[#1e1035] uppercase tracking-wider flex justify-between">
+                      <span>Payment Screenshot <span className="text-rose-600">*</span></span>
+                      <span className="text-[10px] text-[#6e5a8e]">PNG, JPG, WEBP (Max 5MB)</span>
+                    </label>
+
+                    {!screenshotPreview ? (
+                      <label className="border-2 border-dashed border-purple-300 hover:border-purple-500 bg-purple-50/40 hover:bg-purple-50/80 rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all text-center">
+                        <Upload className="w-6 h-6 text-purple-600" />
+                        <span className="text-xs font-bold text-[#1e1035]">Click or Drag &amp; Drop Payment Screenshot</span>
+                        <span className="text-[10.5px] text-[#6e5a8e]">Upload proof of your crypto wallet transfer</span>
+                        <input
+                          type="file"
+                          accept="image/png, image/jpeg, image/webp"
+                          onChange={handleScreenshotUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    ) : (
+                      <div className="p-3 rounded-2xl bg-purple-50 border border-purple-200 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <img 
+                            src={screenshotPreview} 
+                            alt="Screenshot Preview" 
+                            className="w-12 h-12 object-cover rounded-xl border border-purple-300 shadow-xs" 
+                          />
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-[#1e1035] truncate">{screenshotFile?.name || 'Payment_Proof.png'}</p>
+                            <p className="text-[10.5px] text-emerald-700 font-semibold flex items-center gap-1">
+                              <CheckCircle className="w-3 h-3 text-emerald-600" /> Screenshot Attached
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveScreenshot}
+                          className="text-xs text-rose-600 hover:text-rose-800 font-bold px-3 py-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 cursor-pointer transition-colors"
+                        >
+                          Change
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {errorMessage && (
+                    <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{errorMessage}</span>
+                    </div>
+                  )}
+
+                  {/* Cloudflare Anti-Bot Captcha */}
+                  <CaptchaWidget
+                    isVerified={isCaptchaVerified}
+                    onVerify={(status) => setIsCaptchaVerified(status)}
+                  />
+
+                  {/* Submit Payment Button */}
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="glass-btn-gradient w-full h-12 rounded-full font-['Satoshi'] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-50 transition-all hover:scale-[1.01]"
+                  >
+                    {isSubmitting ? (
+                      <span className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 animate-spin" /> Submitting Payment Proof...
+                      </span>
+                    ) : (
+                      <>
+                        <span>SUBMIT PAYMENT</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+
+                </div>
+              </div>
+            )}
 
           </form>
         ) : (

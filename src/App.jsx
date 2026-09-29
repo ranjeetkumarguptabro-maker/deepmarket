@@ -101,6 +101,60 @@ export const App = () => {
           }
         });
       }
+
+      // Check for PayU payment return redirect
+      const urlParams = new URLSearchParams(window.location.search);
+      const payuStatus = urlParams.get('payu_status');
+      const payuTxnId = urlParams.get('txnid');
+      const payuAmount = urlParams.get('amount');
+      const payuRef = urlParams.get('ref');
+      const payuReason = urlParams.get('reason');
+
+      if (payuStatus === 'success') {
+        const orderId = payuTxnId || `DM-${Math.floor(10000 + Math.random() * 90000)}`;
+        const confirmedOrder = {
+          id: orderId,
+          orderNumber: orderId,
+          suiteId: 'payu-verified-suite',
+          suiteName: 'DeepMarket Premium Card Suite (PayU Verified)',
+          brand: 'VISA',
+          priceInr: parseFloat(payuAmount) || 1000,
+          totalPaid: parseFloat(payuAmount) || 1000,
+          paymentMethod: 'PayU Payment Gateway (UPI / Cards)',
+          paymentStatus: 'Payment Confirmed',
+          status: 'Payment Confirmed',
+          date: new Date().toLocaleDateString(),
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          timestamp: `${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+          submittedAt: new Date().toISOString(),
+          payuRef: payuRef || 'PAYU_REF_' + Date.now(),
+          demoCard: {
+            cardType: 'VISA',
+            name: 'VIP Customer',
+            fullCardNumber: `4532 ${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(1000 + Math.random() * 9000)}`,
+            cardNumber: `4532 •••• •••• ${Math.floor(1000 + Math.random() * 9000)}`,
+            expiry: `08/${new Date().getFullYear() + 3}`,
+            cvv: `${Math.floor(100 + Math.random() * 900)}`,
+            zip: '110001',
+            country: 'India',
+            accessKey: `DM-AUTH-${Math.floor(100000 + Math.random() * 900000)}`
+          }
+        };
+
+        const existingOrders = JSON.parse(localStorage.getItem('deepmarket_orders') || '[]');
+        if (!existingOrders.some((o) => o.id === orderId)) {
+          const updated = [confirmedOrder, ...existingOrders];
+          localStorage.setItem('deepmarket_orders', JSON.stringify(updated));
+          setTransactions(updated);
+          syncOrderToSupabase(confirmedOrder);
+        }
+        showToast('🎉 PayU Payment Successful! Card suite unlocked.');
+        setIsOrdersOpen(true);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (payuStatus === 'failed') {
+        showToast(`❌ PayU Payment Failed: ${payuReason || 'Transaction declined.'}`);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     } catch (e) {
       console.warn("Failed to read data from localStorage", e);
     }

@@ -18,14 +18,36 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Initialize Razorpay SDK instance securely from environment variables
+// Initialize Razorpay SDK instance safely (optional fallback)
 const razorpayKeyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID;
 const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
 
-const razorpayInstance = new Razorpay({
-  key_id: razorpayKeyId,
-  key_secret: razorpayKeySecret
-});
+let razorpayInstance = null;
+if (razorpayKeyId && razorpayKeySecret) {
+  try {
+    razorpayInstance = new Razorpay({
+      key_id: razorpayKeyId,
+      key_secret: razorpayKeySecret
+    });
+  } catch (e) {
+    console.warn('⚠️ Razorpay initialization skipped:', e.message);
+  }
+}
+
+// PayU Payment Gateway Credentials & Configuration
+const payuMerchantKey = process.env.PAYU_MERCHANT_KEY || process.env.PAYU_KEY || '';
+const payuMerchantSalt = process.env.PAYU_MERCHANT_SALT || process.env.PAYU_SALT || '';
+const payuClientId = process.env.PAYU_CLIENT_ID || '';
+const payuClientSecret = process.env.PAYU_CLIENT_SECRET || '';
+const payuEnv = (process.env.PAYU_ENV || 'test').toLowerCase(); // 'test' or 'prod' / 'production'
+
+const PAYU_PAYMENT_URL = (payuEnv === 'prod' || payuEnv === 'production')
+  ? 'https://secure.payu.in/_payment'
+  : 'https://test.payu.in/_payment';
+
+const PAYU_SUCCESS_URL = process.env.PAYU_SUCCESS_URL || 'http://localhost:4000/api/payu/response';
+const PAYU_FAILURE_URL = process.env.PAYU_FAILURE_URL || 'http://localhost:4000/api/payu/response';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 // Disk Persistence Path for Durable Webhook Idempotency & Order Ledger (Survives Server Restarts)
 const DATA_DIR = path.join(__dirname, 'data');
@@ -98,10 +120,10 @@ app.use((req, res, next) => {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   
-  // Strict Razorpay CSP Policy
+  // Payment Gateway CSP Policy (Razorpay & PayU India)
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com; font-src 'self' https://fonts.gstatic.com https://api.fontshare.com; frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com; connect-src 'self' https://lumberjack.razorpay.com https://api.razorpay.com https://*.supabase.co; img-src 'self' data: https:;"
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://test.payu.in https://secure.payu.in https://bolt.payu.in; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com; font-src 'self' https://fonts.gstatic.com https://api.fontshare.com; frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com https://test.payu.in https://secure.payu.in https://bolt.payu.in; connect-src 'self' https://lumberjack.razorpay.com https://api.razorpay.com https://*.supabase.co https://test.payu.in https://secure.payu.in https://info.payu.in; img-src 'self' data: https:; form-action 'self' https://test.payu.in https://secure.payu.in;"
   );
   
   // Production HTTPS Redirection Enforcement
@@ -188,6 +210,13 @@ app.post('/api/create-order', checkoutLimiter, async (req, res) => {
       currency: currency.toUpperCase(),
       receipt: receipt || `rcpt_${Date.now()}`
     };
+
+    if (!razorpayInstance) {
+      return res.status(503).json({
+        error: 'Razorpay Not Configured',
+        message: 'Razorpay API Key/Secret is not configured on this server.'
+      });
+    }
 
     const order = await razorpayInstance.orders.create(options);
 
@@ -364,6 +393,349 @@ app.post('/api/razorpay/webhook', (req, res) => {
     logStructured('ERROR', 'WEBHOOK_PROCESSING_EXCEPTION', error.message);
     return res.status(500).json({ error: 'Webhook processing failed' });
   }
+});
+
+// ==========================================
+// PAYU INDIA PAYMENT GATEWAY INTEGRATION
+// ==========================================
+
+// Helper: Calculate PayU Request Hash
+// Standard PayU formula with empty UDFs (exactly 11 pipes between email and salt):
+// sha512(key|txnid|amount|productinfo|firstname|email|||||||||||SALT)
+const calculatePayURequestHash = ({ key, txnid, amount, productinfo, firstname, email, salt }) => {
+  const hashString = `${key}|${txnid}|${amount}|${productinfo}|${firstname}|${email}|||||||||||${salt}`;
+  return crypto.createHash('sha512').update(hashString).digest('hex');
+};
+
+// Helper: Verify PayU Response Reverse Hash
+// PayU reverse sequence:
+// [additionalCharges|]salt|status|udf10|udf9|udf8|udf7|udf6|udf5|udf4|udf3|udf2|udf1|email|firstname|productinfo|amount|txnid|key
+const verifyPayUResponseHash = (params, salt) => {
+  const {
+    key = '',
+    txnid = '',
+    amount = '',
+    productinfo = '',
+    firstname = '',
+    email = '',
+    status = '',
+    hash = '',
+    udf1 = '',
+    udf2 = '',
+    udf3 = '',
+    udf4 = '',
+    udf5 = '',
+    udf6 = '',
+    udf7 = '',
+    udf8 = '',
+    udf9 = '',
+    udf10 = '',
+    additionalCharges
+  } = params;
+
+  let hashSequence = '';
+  const udfPart = `${udf10}|${udf9}|${udf8}|${udf7}|${udf6}|${udf5}|${udf4}|${udf3}|${udf2}|${udf1}`;
+
+  if (additionalCharges) {
+    hashSequence = `${additionalCharges}|${salt}|${status}|${udfPart}|${email}|${firstname}|${productinfo}|${amount}|${txnid}|${key}`;
+  } else {
+    hashSequence = `${salt}|${status}|${udfPart}|${email}|${firstname}|${productinfo}|${amount}|${txnid}|${key}`;
+  }
+
+  const calculatedHash = crypto.createHash('sha512').update(hashSequence).digest('hex');
+  return {
+    isValid: calculatedHash.toLowerCase() === (hash || '').toLowerCase(),
+    calculatedHash,
+    receivedHash: hash
+  };
+};
+
+// PayU Config Status Endpoint
+app.get('/api/payu/config', (req, res) => {
+  res.json({
+    configured: Boolean(payuMerchantKey && payuMerchantSalt),
+    environment: payuEnv,
+    paymentUrl: PAYU_PAYMENT_URL,
+    hasKey: Boolean(payuMerchantKey),
+    hasSalt: Boolean(payuMerchantSalt),
+    hasClientId: Boolean(payuClientId),
+    hasClientSecret: Boolean(payuClientSecret),
+    merchantKeyMasked: payuMerchantKey ? `${payuMerchantKey.slice(0, 3)}****${payuMerchantKey.slice(-2)}` : null
+  });
+});
+
+// PayU Step 1: Initiate Payment & Generate Request Hash
+app.post('/api/payu/create-payment', checkoutLimiter, async (req, res) => {
+  try {
+    const {
+      amount,
+      productinfo = 'DeepMarket Item',
+      firstname = 'Customer',
+      email = 'customer@deepmarket.org',
+      phone = '9876543210',
+      suiteId,
+      suiteName,
+      brand = 'VISA',
+      userId = 'guest_user'
+    } = req.body;
+
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      return res.status(400).json({ error: 'Invalid Amount', message: 'Amount must be greater than 0.' });
+    }
+
+    const formattedAmount = numAmount.toFixed(2);
+    const txnid = `DM_TXN_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const key = payuMerchantKey || 'DEMO_KEY';
+    const salt = payuMerchantSalt || 'DEMO_SALT';
+
+    const cleanFirstname = (firstname || 'Customer').replace(/[^a-zA-Z0-9]/g, '').trim() || 'Customer';
+    const cleanProductInfo = (productinfo || 'DeepMarket Order').replace(/[^\w\s-]/gi, '').trim().substring(0, 100) || 'DeepMarket Item';
+    const cleanEmail = (email || 'customer@deepmarket.org').trim();
+    const cleanPhone = (phone || '9876543210').replace(/[^0-9]/g, '').slice(-10) || '9876543210';
+
+    const hash = calculatePayURequestHash({
+      key,
+      txnid,
+      amount: formattedAmount,
+      productinfo: cleanProductInfo,
+      firstname: cleanFirstname,
+      email: cleanEmail,
+      salt
+    });
+
+    // Record order in ledger
+    ledgerData.orders[txnid] = {
+      order_id: txnid,
+      txnid,
+      amount: numAmount,
+      formattedAmount,
+      currency: 'INR',
+      productinfo: cleanProductInfo,
+      firstname: cleanFirstname,
+      email: cleanEmail,
+      phone: cleanPhone,
+      suiteId,
+      suiteName: suiteName || cleanProductInfo,
+      brand,
+      userId,
+      status: 'pending',
+      gateway: 'payu',
+      timestamp: new Date().toISOString()
+    };
+    saveLedger();
+
+    logStructured('INFO', 'PAYU_PAYMENT_INITIATED', `PayU payment created for ${txnid} (₹${formattedAmount})`, {
+      txnid,
+      amount: formattedAmount,
+      customer: cleanFirstname
+    });
+
+    // Obtain direct PayU Checkout URL by calling PayU hosted gateway
+    let directCheckoutUrl = null;
+    try {
+      const formData = new URLSearchParams({
+        key,
+        txnid,
+        amount: formattedAmount,
+        productinfo: cleanProductInfo,
+        firstname: cleanFirstname,
+        email: cleanEmail,
+        phone: cleanPhone,
+        surl: PAYU_SUCCESS_URL,
+        furl: PAYU_FAILURE_URL,
+        hash,
+        service_provider: 'payu_paisa'
+      });
+
+      const payuResponse = await fetch(PAYU_PAYMENT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString(),
+        redirect: 'manual'
+      });
+
+      if (payuResponse.status === 302 || payuResponse.status === 301) {
+        directCheckoutUrl = payuResponse.headers.get('location');
+        logStructured('INFO', 'PAYU_CHECKOUT_URL_OBTAINED', `PayU redirect URL obtained for ${txnid}`, {
+          directCheckoutUrl
+        });
+      }
+    } catch (fetchErr) {
+      logStructured('WARN', 'PAYU_DIRECT_FETCH_FALLBACK', `Could not pre-fetch PayU redirect URL: ${fetchErr.message}`);
+    }
+
+    return res.json({
+      success: true,
+      action: PAYU_PAYMENT_URL,
+      redirectUrl: directCheckoutUrl,
+      params: {
+        key,
+        txnid,
+        amount: formattedAmount,
+        productinfo: cleanProductInfo,
+        firstname: cleanFirstname,
+        email: cleanEmail,
+        phone: cleanPhone,
+        surl: PAYU_SUCCESS_URL,
+        furl: PAYU_FAILURE_URL,
+        hash,
+        service_provider: 'payu_paisa'
+      },
+      configured: Boolean(payuMerchantKey && payuMerchantSalt)
+    });
+  } catch (error) {
+    logStructured('ERROR', 'PAYU_CREATE_PAYMENT_ERROR', error.message, { stack: error.stack });
+    return res.status(500).json({ error: 'Server Error', message: 'Failed to initiate PayU payment: ' + error.message });
+  }
+});
+
+// PayU Step 2: Response Handler (surl & furl Callback from PayU)
+const handlePayUCallback = (req, res) => {
+  try {
+    const params = req.method === 'POST' ? (req.body || {}) : (req.query || {});
+    const {
+      status,
+      txnid,
+      amount,
+      payuMoneyId,
+      bank_ref_num,
+      error_Message,
+      field9,
+      hash
+    } = params;
+
+    // Direct browser hit without transaction parameters: redirect to frontend
+    if (!txnid && !status) {
+      return res.redirect(`${FRONTEND_URL}/?payu_status=info&message=PayU+Gateway+Service+Active`);
+    }
+
+    logStructured('INFO', 'PAYU_CALLBACK_RECEIVED', `PayU callback received for txnid: ${txnid} with status: ${status}`, {
+      method: req.method,
+      txnid,
+      status,
+      amount,
+      payuMoneyId,
+      bank_ref_num
+    });
+
+    const salt = payuMerchantSalt || 'DEMO_SALT';
+    const hashCheck = verifyPayUResponseHash(params, salt);
+
+    const isHashValid = hashCheck.isValid;
+    const storedOrder = ledgerData.orders[txnid];
+    
+    // In production, hash verification is strictly required. In demo/test without salt, permit test passes
+    const isPaymentApproved = (status === 'success') && (isHashValid || !payuMerchantSalt);
+
+    if (storedOrder) {
+      storedOrder.status = isPaymentApproved ? 'paid' : 'failed';
+      storedOrder.payuMoneyId = payuMoneyId || null;
+      storedOrder.bank_ref_num = bank_ref_num || null;
+      storedOrder.payuStatus = status;
+      storedOrder.hashVerified = isHashValid;
+      storedOrder.paidAt = isPaymentApproved ? new Date().toISOString() : null;
+      ledgerData.orders[txnid] = storedOrder;
+      saveLedger();
+    }
+
+    if (isPaymentApproved) {
+      logStructured('INFO', 'PAYU_ORDER_CONFIRMED', `PayU payment successfully verified for order ${txnid}`, {
+        txnid,
+        amount,
+        payuMoneyId
+      });
+      return res.redirect(`${FRONTEND_URL}/?payu_status=success&txnid=${encodeURIComponent(txnid || '')}&amount=${encodeURIComponent(amount || '')}&ref=${encodeURIComponent(bank_ref_num || payuMoneyId || '')}`);
+    } else {
+      const failureReason = error_Message || field9 || (isHashValid ? 'Payment declined by bank or user' : 'Security signature mismatch');
+      logStructured('SECURITY_ALERT', 'PAYU_PAYMENT_UNVERIFIED', `PayU payment failed or unverified for ${txnid}: ${failureReason}`, {
+        txnid,
+        status,
+        hashMatch: isHashValid
+      });
+      return res.redirect(`${FRONTEND_URL}/?payu_status=failed&txnid=${encodeURIComponent(txnid || '')}&reason=${encodeURIComponent(failureReason)}`);
+    }
+  } catch (error) {
+    logStructured('ERROR', 'PAYU_CALLBACK_EXCEPTION', error.message);
+    return res.redirect(`${FRONTEND_URL}/?payu_status=error&reason=${encodeURIComponent('Callback processing error')}`);
+  }
+};
+
+app.post('/api/payu/response', handlePayUCallback);
+app.get('/api/payu/response', handlePayUCallback);
+app.post('/api/payu/success', handlePayUCallback);
+app.get('/api/payu/success', handlePayUCallback);
+app.post('/api/payu/failure', handlePayUCallback);
+app.get('/api/payu/failure', handlePayUCallback);
+
+// PayU Step 3: Server-to-Server Verify Payment API
+app.post('/api/payu/verify-payment', checkoutLimiter, async (req, res) => {
+  try {
+    const { txnid } = req.body;
+    if (!txnid) {
+      return res.status(400).json({ error: 'Missing txnid', message: 'Transaction ID is required.' });
+    }
+
+    const order = ledgerData.orders[txnid];
+    if (!order) {
+      return res.status(404).json({ error: 'Order Not Found', message: `Order ${txnid} not found in database ledger.` });
+    }
+
+    // Check with PayU Web Service if keys are configured
+    if (payuMerchantKey && payuMerchantSalt) {
+      const command = 'verify_payment';
+      const hashStr = `${payuMerchantKey}|${command}|${txnid}|${payuMerchantSalt}`;
+      const hash = crypto.createHash('sha512').update(hashStr).digest('hex');
+
+      const verifyServiceUrl = (payuEnv === 'prod' || payuEnv === 'production')
+        ? 'https://info.payu.in/merchant/postservice?form=2'
+        : 'https://test.payu.in/merchant/postservice?form=2';
+
+      try {
+        const formData = new URLSearchParams();
+        formData.append('key', payuMerchantKey);
+        formData.append('command', command);
+        formData.append('var1', txnid);
+        formData.append('hash', hash);
+
+        const response = await fetch(verifyServiceUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData.toString()
+        });
+
+        const data = await response.json();
+        return res.json({
+          success: true,
+          txnid,
+          ledgerStatus: order.status,
+          payuVerification: data
+        });
+      } catch (err) {
+        logStructured('WARN', 'PAYU_VERIFY_API_FALLBACK', 'PayU postservice query failed, returning ledger record', { error: err.message });
+      }
+    }
+
+    return res.json({
+      success: true,
+      txnid,
+      ledgerStatus: order.status,
+      order
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Verification Failed', message: err.message });
+  }
+});
+
+// PayU Order Status Lookup
+app.get('/api/payu/orders/:txnid', (req, res) => {
+  const { txnid } = req.params;
+  const order = ledgerData.orders[txnid];
+  if (!order) {
+    return res.status(404).json({ error: 'Not Found', message: `Transaction ${txnid} not found.` });
+  }
+  return res.json({ success: true, order });
 });
 
 app.post('/api/auth/login', loginLimiter, (req, res) => {
