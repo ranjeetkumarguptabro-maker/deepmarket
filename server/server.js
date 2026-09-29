@@ -35,8 +35,8 @@ if (razorpayKeyId && razorpayKeySecret) {
 }
 
 // PayU Payment Gateway Credentials & Configuration
-const payuMerchantKey = process.env.PAYU_MERCHANT_KEY || process.env.PAYU_KEY || '';
-const payuMerchantSalt = process.env.PAYU_MERCHANT_SALT || process.env.PAYU_SALT || '';
+const payuMerchantKey = process.env.PAYU_MERCHANT_KEY || process.env.PAYU_KEY || '3Br5qF';
+const payuMerchantSalt = process.env.PAYU_MERCHANT_SALT || process.env.PAYU_SALT || 'Hk0JjY3HCQgI0vqSuJlFOnImIMmUHzKk';
 const payuClientId = process.env.PAYU_CLIENT_ID || '';
 const payuClientSecret = process.env.PAYU_CLIENT_SECRET || '';
 const payuEnv = (process.env.PAYU_ENV || 'test').toLowerCase(); // 'test' or 'prod' / 'production'
@@ -45,16 +45,23 @@ const PAYU_PAYMENT_URL = (payuEnv === 'prod' || payuEnv === 'production')
   ? 'https://secure.payu.in/_payment'
   : 'https://test.payu.in/_payment';
 
-const PAYU_SUCCESS_URL = process.env.PAYU_SUCCESS_URL || 'http://localhost:4000/api/payu/response';
-const PAYU_FAILURE_URL = process.env.PAYU_FAILURE_URL || 'http://localhost:4000/api/payu/response';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+const PAYU_SUCCESS_URL = process.env.PAYU_SUCCESS_URL || '';
+const PAYU_FAILURE_URL = process.env.PAYU_FAILURE_URL || '';
+const FRONTEND_URL = process.env.FRONTEND_URL || '';
 
 // Disk Persistence Path for Durable Webhook Idempotency & Order Ledger (Survives Server Restarts)
-const DATA_DIR = path.join(__dirname, 'data');
+// On Vercel serverless, root filesystem is read-only; use /tmp directory
+const DATA_DIR = process.env.VERCEL
+  ? path.join('/tmp', 'data')
+  : path.join(__dirname, 'data');
 const LEDGER_FILE = path.join(DATA_DIR, 'ledger.json');
 
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+try {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+} catch (e) {
+  console.warn('DATA_DIR creation notice:', e.message);
 }
 
 let ledgerData = { orders: {}, processedWebhooks: [] };
@@ -94,19 +101,28 @@ const logStructured = (level, category, message, meta = {}) => {
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-// 2. CORS Policy (Restricts allowed frontend origins strictly to production domain)
-const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? ['https://deepmarket.org', 'https://deepmarket.vercel.app']
-  : ['http://localhost:3000', 'http://localhost:5173', 'http://192.168.1.103:3000', 'https://deepmarket.org'];
+// 2. CORS Policy (Permits localhost, official domain, and any Vercel deployment preview)
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://192.168.1.103:3000',
+  'https://deepmarket.org',
+  'https://deepmarket.vercel.app'
+];
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      logStructured('SECURITY_ALERT', 'CORS', 'Blocked unauthorized origin', { origin });
-      callback(new Error('CORS Security Block: Origin not allowed.'));
+    if (!origin) return callback(null, true);
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.vercel.app') ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1')
+    ) {
+      return callback(null, true);
     }
+    logStructured('SECURITY_ALERT', 'CORS', 'Blocked unauthorized origin', { origin });
+    callback(new Error('CORS Security Block: Origin not allowed.'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
@@ -533,6 +549,15 @@ app.post('/api/payu/create-payment', checkoutLimiter, async (req, res) => {
       customer: cleanFirstname
     });
 
+    // Determine dynamic callback URLs
+    const reqHost = req.get('x-forwarded-host') || req.get('host') || 'localhost:4000';
+    const reqProto = req.get('x-forwarded-proto') || (req.secure ? 'https' : (reqHost.includes('localhost') ? 'http' : 'https'));
+    const dynamicBaseUrl = `${reqProto}://${reqHost}`;
+
+    const defaultResponseUrl = `${dynamicBaseUrl}/api/payu/response`;
+    const surl = PAYU_SUCCESS_URL || defaultResponseUrl;
+    const furl = PAYU_FAILURE_URL || defaultResponseUrl;
+
     // Obtain direct PayU Checkout URL by calling PayU hosted gateway
     let directCheckoutUrl = null;
     try {
@@ -544,8 +569,8 @@ app.post('/api/payu/create-payment', checkoutLimiter, async (req, res) => {
         firstname: cleanFirstname,
         email: cleanEmail,
         phone: cleanPhone,
-        surl: PAYU_SUCCESS_URL,
-        furl: PAYU_FAILURE_URL,
+        surl,
+        furl,
         hash,
         service_provider: 'payu_paisa'
       });
@@ -579,8 +604,8 @@ app.post('/api/payu/create-payment', checkoutLimiter, async (req, res) => {
         firstname: cleanFirstname,
         email: cleanEmail,
         phone: cleanPhone,
-        surl: PAYU_SUCCESS_URL,
-        furl: PAYU_FAILURE_URL,
+        surl,
+        furl,
         hash,
         service_provider: 'payu_paisa'
       },
@@ -607,9 +632,16 @@ const handlePayUCallback = (req, res) => {
       hash
     } = params;
 
+    // Dynamic frontend redirect URL
+    const reqHost = req.get('x-forwarded-host') || req.get('host') || 'localhost:3000';
+    const reqProto = req.get('x-forwarded-proto') || (req.secure ? 'https' : (reqHost.includes('localhost') ? 'http' : 'https'));
+    const dynamicFrontendUrl = (FRONTEND_URL && !FRONTEND_URL.includes('localhost'))
+      ? FRONTEND_URL
+      : `${reqProto}://${reqHost}`;
+
     // Direct browser hit without transaction parameters: redirect to frontend
     if (!txnid && !status) {
-      return res.redirect(`${FRONTEND_URL}/?payu_status=info&message=PayU+Gateway+Service+Active`);
+      return res.redirect(`${dynamicFrontendUrl}/?payu_status=info&message=PayU+Gateway+Service+Active`);
     }
 
     logStructured('INFO', 'PAYU_CALLBACK_RECEIVED', `PayU callback received for txnid: ${txnid} with status: ${status}`, {
@@ -648,7 +680,7 @@ const handlePayUCallback = (req, res) => {
         payuMoneyId
       });
       const customerName = storedOrder?.fullName || storedOrder?.firstname || params.firstname || 'Customer';
-      return res.redirect(`${FRONTEND_URL}/?payu_status=success&txnid=${encodeURIComponent(txnid || '')}&amount=${encodeURIComponent(amount || '')}&ref=${encodeURIComponent(bank_ref_num || payuMoneyId || '')}&customer=${encodeURIComponent(customerName)}`);
+      return res.redirect(`${dynamicFrontendUrl}/?payu_status=success&txnid=${encodeURIComponent(txnid || '')}&amount=${encodeURIComponent(amount || '')}&ref=${encodeURIComponent(bank_ref_num || payuMoneyId || '')}&customer=${encodeURIComponent(customerName)}`);
     } else {
       const failureReason = error_Message || field9 || (isHashValid ? 'Payment declined by bank or user' : 'Security signature mismatch');
       logStructured('SECURITY_ALERT', 'PAYU_PAYMENT_UNVERIFIED', `PayU payment failed or unverified for ${txnid}: ${failureReason}`, {
@@ -656,11 +688,14 @@ const handlePayUCallback = (req, res) => {
         status,
         hashMatch: isHashValid
       });
-      return res.redirect(`${FRONTEND_URL}/?payu_status=failed&txnid=${encodeURIComponent(txnid || '')}&reason=${encodeURIComponent(failureReason)}`);
+      return res.redirect(`${dynamicFrontendUrl}/?payu_status=failed&txnid=${encodeURIComponent(txnid || '')}&reason=${encodeURIComponent(failureReason)}`);
     }
   } catch (error) {
     logStructured('ERROR', 'PAYU_CALLBACK_EXCEPTION', error.message);
-    return res.redirect(`${FRONTEND_URL}/?payu_status=error&reason=${encodeURIComponent('Callback processing error')}`);
+    const reqHost = req.get('x-forwarded-host') || req.get('host') || 'localhost:3000';
+    const reqProto = req.get('x-forwarded-proto') || (req.secure ? 'https' : (reqHost.includes('localhost') ? 'http' : 'https'));
+    const dynamicFrontendUrl = `${reqProto}://${reqHost}`;
+    return res.redirect(`${dynamicFrontendUrl}/?payu_status=error&reason=${encodeURIComponent('Callback processing error')}`);
   }
 };
 
@@ -768,8 +803,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), security: 'Active (Rate Limits + Helmet + CORS + CAPTCHA + Razorpay Endpoints)' });
 });
 
-// Start Server
-if (process.env.NODE_ENV !== 'test') {
+// Start Server (when not running in serverless environment)
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`🛡️ Secure Node/Express Server running on port ${PORT}`);
   });

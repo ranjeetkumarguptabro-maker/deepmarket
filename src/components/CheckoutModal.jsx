@@ -229,7 +229,15 @@ export const CheckoutModal = ({
         })
       });
 
-      const data = await response.json();
+      let data;
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(text || `Payment endpoint returned HTTP ${response.status}`);
+      }
+
       if (!response.ok || !data.success) {
         throw new Error(data.message || 'Failed to initiate PayU payment.');
       }
