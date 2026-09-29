@@ -69,19 +69,28 @@ export const CheckoutModal = ({
   const [appliedPromo, setAppliedPromo] = useState(null);
   const [promoError, setPromoError] = useState('');
 
-  // Prefill user details when modal opens
+  // Reset or prefill user details when modal opens
   useEffect(() => {
     if (isOpen) {
-      if (userProfile) {
+      if (userProfile && (userProfile.firstName || userProfile.surname)) {
         const fullName = [userProfile.firstName, userProfile.surname].filter(Boolean).join(' ');
-        setCustomerName(fullName || 'VIP Customer');
-        setCustomerEmail(userProfile.gmail || 'vip@deepmarket.org');
-        setCustomerPhone(userProfile.phone || userProfile.telegramHandle || '+91 98765 43210');
+        setCustomerName(fullName);
       } else {
-        setCustomerName('VIP Customer');
-        setCustomerEmail('vip@deepmarket.org');
-        setCustomerPhone('+91 98765 43210');
+        setCustomerName('');
       }
+
+      if (userProfile && userProfile.gmail) {
+        setCustomerEmail(userProfile.gmail);
+      } else {
+        setCustomerEmail('');
+      }
+
+      if (userProfile && (userProfile.phone || userProfile.telegramHandle)) {
+        setCustomerPhone(userProfile.phone || userProfile.telegramHandle);
+      } else {
+        setCustomerPhone('');
+      }
+
       // Reset inputs
       setTxId('');
       setScreenshotFile(null);
@@ -175,7 +184,19 @@ export const CheckoutModal = ({
     if (e) e.preventDefault();
     setErrorMessage('');
 
-    if (!customerEmail) {
+    if (!customerName || !customerName.trim()) {
+      setErrorMessage('Please enter your full name.');
+      if (onShowToast) onShowToast('Please enter your name.');
+      return;
+    }
+
+    if (!customerPhone || !customerPhone.trim()) {
+      setErrorMessage('Please enter your 10-digit mobile number.');
+      if (onShowToast) onShowToast('Phone number is required.');
+      return;
+    }
+
+    if (!customerEmail || !customerEmail.trim()) {
       setErrorMessage('Please provide your email address for payment receipt.');
       if (onShowToast) onShowToast('Email address is required for PayU payment.');
       return;
@@ -198,13 +219,13 @@ export const CheckoutModal = ({
         body: JSON.stringify({
           amount: totalPaid,
           productinfo: orderTitle,
-          firstname: (customerName || 'Customer').split(' ')[0],
-          email: customerEmail,
-          phone: customerPhone || '9876543210',
+          firstname: customerName.trim(),
+          email: customerEmail.trim(),
+          phone: customerPhone.trim(),
           suiteId: selectedSuite.id,
           suiteName: orderTitle,
           brand: selectedBrand,
-          userId: userProfile?.gmail || 'guest_user'
+          userId: userProfile?.gmail || customerEmail.trim() || 'guest_user'
         })
       });
 

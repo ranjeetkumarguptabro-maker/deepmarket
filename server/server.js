@@ -490,10 +490,10 @@ app.post('/api/payu/create-payment', checkoutLimiter, async (req, res) => {
     const key = payuMerchantKey || 'DEMO_KEY';
     const salt = payuMerchantSalt || 'DEMO_SALT';
 
-    const cleanFirstname = (firstname || 'Customer').replace(/[^a-zA-Z0-9]/g, '').trim() || 'Customer';
+    const cleanFirstname = (firstname || '').replace(/[^a-zA-Z0-9\s]/g, '').trim().substring(0, 60) || 'Customer';
     const cleanProductInfo = (productinfo || 'DeepMarket Order').replace(/[^\w\s-]/gi, '').trim().substring(0, 100) || 'DeepMarket Item';
-    const cleanEmail = (email || 'customer@deepmarket.org').trim();
-    const cleanPhone = (phone || '9876543210').replace(/[^0-9]/g, '').slice(-10) || '9876543210';
+    const cleanEmail = (email || '').trim() || 'customer@deepmarket.org';
+    const cleanPhone = (phone || '').replace(/[^0-9]/g, '').slice(-10) || '9876543210';
 
     const hash = calculatePayURequestHash({
       key,
@@ -513,6 +513,7 @@ app.post('/api/payu/create-payment', checkoutLimiter, async (req, res) => {
       formattedAmount,
       currency: 'INR',
       productinfo: cleanProductInfo,
+      fullName: (firstname || '').trim() || cleanFirstname,
       firstname: cleanFirstname,
       email: cleanEmail,
       phone: cleanPhone,
@@ -646,7 +647,8 @@ const handlePayUCallback = (req, res) => {
         amount,
         payuMoneyId
       });
-      return res.redirect(`${FRONTEND_URL}/?payu_status=success&txnid=${encodeURIComponent(txnid || '')}&amount=${encodeURIComponent(amount || '')}&ref=${encodeURIComponent(bank_ref_num || payuMoneyId || '')}`);
+      const customerName = storedOrder?.fullName || storedOrder?.firstname || params.firstname || 'Customer';
+      return res.redirect(`${FRONTEND_URL}/?payu_status=success&txnid=${encodeURIComponent(txnid || '')}&amount=${encodeURIComponent(amount || '')}&ref=${encodeURIComponent(bank_ref_num || payuMoneyId || '')}&customer=${encodeURIComponent(customerName)}`);
     } else {
       const failureReason = error_Message || field9 || (isHashValid ? 'Payment declined by bank or user' : 'Security signature mismatch');
       logStructured('SECURITY_ALERT', 'PAYU_PAYMENT_UNVERIFIED', `PayU payment failed or unverified for ${txnid}: ${failureReason}`, {

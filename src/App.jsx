@@ -109,9 +109,11 @@ export const App = () => {
       const payuAmount = urlParams.get('amount');
       const payuRef = urlParams.get('ref');
       const payuReason = urlParams.get('reason');
+      const payuCustomer = urlParams.get('customer');
 
       if (payuStatus === 'success') {
         const orderId = payuTxnId || `DM-${Math.floor(10000 + Math.random() * 90000)}`;
+        const customerDisplayName = payuCustomer || (userProfile && [userProfile.firstName, userProfile.surname].filter(Boolean).join(' ')) || 'Cardholder';
         const confirmedOrder = {
           id: orderId,
           orderNumber: orderId,
@@ -130,7 +132,7 @@ export const App = () => {
           payuRef: payuRef || 'PAYU_REF_' + Date.now(),
           demoCard: {
             cardType: 'VISA',
-            name: 'VIP Customer',
+            name: customerDisplayName,
             fullCardNumber: `4532 ${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(1000 + Math.random() * 9000)}`,
             cardNumber: `4532 •••• •••• ${Math.floor(1000 + Math.random() * 9000)}`,
             expiry: `08/${new Date().getFullYear() + 3}`,
